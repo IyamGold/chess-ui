@@ -23,40 +23,52 @@ function GameList({ onNewGame, onResumeGame }) {
 
     const history = fullGame.moveHistory || [];
     const playerColor = game.engineColor === 'white' ? 'black' : 'white';
-    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const d = new Date(game.updatedAt);
+    const dateStr = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 
-    const moveLines = [];
-    for (let i = 0; i < history.length; i += 2) {
-      const num = Math.floor(i / 2) + 1;
-      const white = `    <white>${esc(history[i])}</white>`;
-      const black = history[i + 1] ? `\n      <black>${esc(history[i + 1])}</black>` : '';
-      moveLines.push(`    <move number="${num}">\n  ${white}${black}\n    </move>`);
+    const humanName = playerColor === 'white' ? 'Human' : 'Engine (Stockfish)';
+    const engineName = playerColor === 'white' ? 'Engine (Stockfish)' : 'Human';
+
+    let txSection = '';
+    if (game.txHash) {
+      txSection = `\n\t<key>Blockchain</key>\n\t<string>Fluent Testnet</string>\n\t<key>TxHash</key>\n\t<string>${game.txHash}</string>\n\t<key>Explorer</key>\n\t<string>https://testnet.fluentscan.xyz/tx/${game.txHash}</string>`;
     }
 
-    const blockchain = game.txHash
-      ? `\n  <blockchain>\n    <network>Fluent Testnet</network>\n    <tx-hash>${esc(game.txHash)}</tx-hash>\n    <explorer>https://testnet.fluentscan.xyz/tx/${esc(game.txHash)}</explorer>\n  </blockchain>`
-      : '';
-
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<chess-game>
-  <metadata>
-    <id>${esc(game.id)}</id>
-    <date>${esc(game.updatedAt)}</date>
-    <player color="${esc(playerColor)}">Human</player>
-    <player color="${esc(game.engineColor)}">Engine (Stockfish)</player>
-    <result code="${esc(game.result)}">${esc(resultLabel(game.result))}</result>
-    <total-moves>${history.length}</total-moves>
-  </metadata>
-  <moves>
-${moveLines.join('\n')}
-  </moves>${blockchain}
-</chess-game>`;
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>White</key>
+\t<string>${humanName}</string>
+\t<key>WhiteType</key>
+\t<string>${playerColor === 'white' ? 'human' : 'program'}</string>
+\t<key>Black</key>
+\t<string>${engineName}</string>
+\t<key>BlackType</key>
+\t<string>${playerColor === 'black' ? 'human' : 'program'}</string>
+\t<key>Event</key>
+\t<string>vs Stockfish</string>
+\t<key>StartDate</key>
+\t<string>${dateStr}</string>
+\t<key>StartTime</key>
+\t<string>${timeStr}</string>
+\t<key>Result</key>
+\t<string>${game.result}</string>
+\t<key>Variant</key>
+\t<string>normal</string>
+\t<key>Moves</key>
+\t<string>
+${history.join('\n')}
+\t</string>${txSection}
+</dict>
+</plist>`;
 
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `chess-game-${game.id}.xml`;
+    a.download = `Game ${game.id}.game`;
     a.click();
     URL.revokeObjectURL(url);
   };
