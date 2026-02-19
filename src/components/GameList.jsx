@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { listGames, deleteGame, loadGame } from '../utils/gameManager';
-import { formatMoves } from '../hooks/usePublishGame';
 import './GameList.css';
 
 function GameList({ onNewGame, onResumeGame }) {
   const [games, setGames] = useState([]);
-  const [copiedId, setCopiedId] = useState(null);
+
 
   useEffect(() => {
     setGames(listGames());
@@ -22,21 +21,44 @@ function GameList({ onNewGame, onResumeGame }) {
     const fullGame = loadGame(game.id);
     if (!fullGame) return;
 
-    const moves = formatMoves(fullGame.moveHistory || []);
-    const playerColor = game.engineColor === 'white' ? 'Black' : 'White';
-    const text = [
-      `Chess Game Record`,
-      `Player: ${playerColor} vs Engine (${game.engineColor})`,
-      `Result: ${resultLabel(game.result)}`,
-      `Date: ${formatDate(game.updatedAt)}`,
-      `Moves: ${moves}`,
-      game.txHash ? `On-chain: https://testnet.fluentscan.xyz/tx/${game.txHash}` : '',
-    ].filter(Boolean).join('\n');
+    const history = fullGame.moveHistory || [];
+    const playerColor = game.engineColor === 'white' ? 'black' : 'white';
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedId(game.id);
-      setTimeout(() => setCopiedId(null), 2000);
-    });
+    const moveLines = [];
+    for (let i = 0; i < history.length; i += 2) {
+      const num = Math.floor(i / 2) + 1;
+      const white = `    <white>${esc(history[i])}</white>`;
+      const black = history[i + 1] ? `\n      <black>${esc(history[i + 1])}</black>` : '';
+      moveLines.push(`    <move number="${num}">\n  ${white}${black}\n    </move>`);
+    }
+
+    const blockchain = game.txHash
+      ? `\n  <blockchain>\n    <network>Fluent Testnet</network>\n    <tx-hash>${esc(game.txHash)}</tx-hash>\n    <explorer>https://testnet.fluentscan.xyz/tx/${esc(game.txHash)}</explorer>\n  </blockchain>`
+      : '';
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<chess-game>
+  <metadata>
+    <id>${esc(game.id)}</id>
+    <date>${esc(game.updatedAt)}</date>
+    <player color="${esc(playerColor)}">Human</player>
+    <player color="${esc(game.engineColor)}">Engine (Stockfish)</player>
+    <result code="${esc(game.result)}">${esc(resultLabel(game.result))}</result>
+    <total-moves>${history.length}</total-moves>
+  </metadata>
+  <moves>
+${moveLines.join('\n')}
+  </moves>${blockchain}
+</chess-game>`;
+
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chess-game-${game.id}.xml`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const resultLabel = (result) => {
@@ -82,9 +104,9 @@ function GameList({ onNewGame, onResumeGame }) {
                   <button
                     className="share-btn"
                     onClick={(e) => handleShare(e, game)}
-                    title="Copy game record"
+                    title="Download game record as XML"
                   >
-                    {copiedId === game.id ? 'Copied!' : 'Share'}
+                    Share
                   </button>
                 )}
                 <button className="delete-btn" onClick={(e) => handleDelete(e, game.id)} title="Delete game">
