@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { listGames, deleteGame, loadGame } from '../utils/gameManager';
+import { listGames, deleteGame, clearAllGames, loadGame } from '../utils/gameManager';
 import './GameList.css';
 
 function GameList({ onNewGame, onResumeGame }) {
@@ -14,6 +14,12 @@ function GameList({ onNewGame, onResumeGame }) {
     e.stopPropagation();
     deleteGame(gameId);
     setGames(listGames());
+  };
+
+  const handleClearAll = () => {
+    if (!window.confirm('Delete all saved games?')) return;
+    clearAllGames();
+    setGames([]);
   };
 
   const handleShare = (e, game) => {
@@ -88,7 +94,12 @@ ${history.join('\n')}
   return (
     <div className="game-list">
       <h2>Your Games</h2>
-      <button className="new-game-btn" onClick={onNewGame}>+ New Game</button>
+      <div className="game-list-actions">
+        <button className="new-game-btn" onClick={onNewGame}>+ New Game</button>
+        {games.length > 0 && (
+          <button className="clear-all-btn" onClick={handleClearAll}>Clear All</button>
+        )}
+      </div>
 
       {games.length === 0 && <p className="no-games">No saved games yet. Start a new game!</p>}
 

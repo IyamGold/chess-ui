@@ -74,6 +74,12 @@ export function deleteGame(gameId) {
   localStorage.setItem(INDEX_KEY, JSON.stringify(index));
 }
 
+export function clearAllGames() {
+  const index = getIndex();
+  index.forEach(g => localStorage.removeItem(GAME_PREFIX + g.id));
+  localStorage.removeItem(INDEX_KEY);
+}
+
 export function markGamePublished(gameId, txHash) {
   const raw = localStorage.getItem(GAME_PREFIX + gameId);
   if (!raw) return;

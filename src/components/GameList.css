@@ -13,6 +13,12 @@
   font-size: 1.8rem;
 }
 
+.game-list-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
 .new-game-btn {
   padding: 0.75rem 2rem;
   background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
@@ -29,6 +35,23 @@
 .new-game-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.clear-all-btn {
+  padding: 0.75rem 1.5rem;
+  background: #f5f5f5;
+  color: #e53935;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-all-btn:hover {
+  background: #ffebee;
+  border-color: #e53935;
 }
 
 .no-games {
