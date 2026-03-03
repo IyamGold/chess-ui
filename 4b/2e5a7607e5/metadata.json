@@ -3,7 +3,7 @@
   "checkpoint_id": "4b2e5a7607e5",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 12,
+  "checkpoints_count": 13,
   "files_touched": [
     "chessdevelopment.md",
     "server/chess.db",
@@ -53,13 +53,20 @@
       "context": "/4b/2e5a7607e5/1/context.md",
       "content_hash": "/4b/2e5a7607e5/1/content_hash.txt",
       "prompt": "/4b/2e5a7607e5/1/prompt.txt"
+    },
+    {
+      "metadata": "/4b/2e5a7607e5/2/metadata.json",
+      "transcript": "/4b/2e5a7607e5/2/full.jsonl",
+      "context": "/4b/2e5a7607e5/2/context.md",
+      "content_hash": "/4b/2e5a7607e5/2/content_hash.txt",
+      "prompt": "/4b/2e5a7607e5/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 173,
-    "cache_creation_tokens": 576292,
-    "cache_read_tokens": 9647401,
-    "output_tokens": 71016,
-    "api_call_count": 129
+    "input_tokens": 243,
+    "cache_creation_tokens": 635636,
+    "cache_read_tokens": 12724693,
+    "output_tokens": 101306,
+    "api_call_count": 193
   }
 }
