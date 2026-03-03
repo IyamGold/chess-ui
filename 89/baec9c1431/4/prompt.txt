@@ -1,0 +1,59 @@
+Implement the following plan:
+
+# Use Stockfish WASM on Server (Same Engine as Frontend)
+
+## Context
+The server tries to spawn a native `stockfish` binary (fails — not installed). The frontend already has Stockfish compiled to WASM (`stockfish.js` npm package v10.0.2) working perfectly in the browser. We'll use the same WASM engine server-side via Node.js `worker_threads`.
+
+## Why worker_threads?
+The `stockfish.wasm.js` module is an Emscripten build targeting Web Workers — it uses `onmessage`/`postMessage` globals. Node.js `worker_threads` is the direct equivalent. A thin adapter script (~15 lines) shims those globals.
+
+## Changes
+
+### 1. New file: `server/chess/stockfishWorker.js` (~15 lines)
+Adapter bridging Web Worker API → Node.js worker_threads:
+- `global.postMessage` → `parentPort.postMessage()`
+- `global.close` → `process.exit()`
+- `parentPort.on('message')` → `global.onmessage({ data })`
+- Set CWD to the stockfish.js package directory (so it finds `stockfish.wasm`)
+- `require('stockfish.js')` at the end — loads and auto-initializes
+
+### 2. Modify: `server/chess/stockfishPlayer.js`
+Swap `child_process.spawn('stockfish')` → `new Worker('./stockfishWorker.js')`:
+- `this.process.stdin.write(cmd)` → `this.worker.postMessage(cmd)`
+- `this.process.stdout.on('data', fn)` → `this.worker.on('message', fn)`
+- `this.process.kill()` → `this.worker.terminate()`
+- Same public interface: `init()`, `getBestMove(fen, level)`, `terminate()`
+
+### 3. No other files change
+`createStockfishPlayer()` factory and interface stay identical. Routes, index.js untouched.
+
+## Verification
+```bash
+cd server && node index.js   # should log "Stockfish engine initialized successfully"
+cd server && npm test         # all 60 tests still pass (stockfish room test updated to expect 201)
+```
+Then create a Stockfish room from the frontend — should work instead of 503.
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/gold/.claude/projects/-Users-gold-VS-code-claude-chess-UI/e34547e0-df3f-4d51-a8c8-81066007e850.jsonl
+
+---
+
+shall i test on frontend now? restart server
+
+---
+
+i see "cannot GET" when i load the site
+
+---
+
+okay its working but i can't see the features we implemented yet on the frontend. everything looks pretty much thesame
+
+---
+
+yes, plan it out
+
+---
+
+[Request interrupted by user for tool use]
