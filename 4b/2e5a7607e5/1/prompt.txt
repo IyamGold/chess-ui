@@ -1,0 +1,147 @@
+Implement the following plan:
+
+# Auth Gate: Passkey Authentication as Game Gatekeeper
+
+## Context
+Currently the chess game is accessible regardless of auth state — the PasskeyButton sits in the header as optional signup/login. When a user logs out and reloads, they still see the game. Games in localStorage aren't tied to user accounts, so different users on the same browser share the same game list.
+
+**Goal**: Make passkey authentication the gate to the chess game. Unauthenticated users see ONLY a sign up / sign in screen.
+
+## SDK Assessment
+
+The existing passkey hooks (`usePasskeyAuth.js`) **already support** the desired flow:
+- **Sign up**: `signup(username)` → creates WebAuthn credential → registers on backend `/api/register` → backend deploys smart account → returns address
+- **Sign in**: `login()` → discoverable credentials → backend `/api/login` → returns account + username
+- **Session persistence**: auto-restores from localStorage on page reload
+- **Error handling**: surfaces backend errors (e.g. registration failures)
+
+**What's missing**:
+1. **Frontend**: No auth gate — game is always visible
+2. **Frontend**: Games in localStorage aren't scoped per user
+3. **Backend**: Username uniqueness check may not exist on `/api/register` (needs verification — outside this repo's scope)
+
+## Implementation Steps
+
+### Step 1: Scope Games Per User in gameManager.js
+**File**: `src/utils/gameManager.js`
+
+- Add `setCurrentUser(accountAddress)` that sets a module-level user prefix
+- `INDEX_KEY` becomes dynamic: `chess_{address}_index`
+- `GAME_PREFIX` becomes dynamic: `chess_{address}_game_`
+- When no user is set (null), fall back to default keys (backward compat)
+- Each user sees only their own games
+
+### Step 2: Create AuthGate Component
+**New files**: `src/components/AuthGate.jsx` + `src/components/AuthGate.css`
+
+Full-page centered auth screen:
+- App title ("Chess Board")
+- Two buttons: "Sign Up" and "Sign In"
+- Sign Up: prompts for username → calls `onSignup(name)`
+- Sign In: calls `onLogin()` (browser passkey picker)
+- Loading spinner during auth
+- Error display with clear messages
+- If login fails → suggest signing up
+
+### Step 3: Restructure App.jsx
+**File**: `src/App.jsx`
+
+- If `!passkey.isAuthenticated`: render `<AuthGate>` only (no game, no header)
+- If `passkey.isAuthenticated`: render current UI (header with username badge + logout, game views)
+- On auth state change: call `setCurrentUser(passkey.account)` or `setCurrentUser(null)`
+- On logout: reset view to 'list', clear activeGame
+- Remove PasskeyButton from header, replace with inline username badge + logout button
+
+### Step 4: Update App.css
+**File**: `src/App.css`
+
+- Remove standalone passkey button styles (move to AuthGate.css)
+- Keep header auth badge styles for authenticated state
+
+## Files Modified
+- `src/App.jsx` — auth gate conditional render, user scoping
+- `src/App.css` — cleanup passkey styles
+- `src/utils/gameManager.js` — per-user storage scoping
+
+## Files Created
+- `src/components/AuthGate.jsx` — full-page sign up / sign in screen
+- `src/components/AuthGate.css` — auth gate styling
+
+## Files Removed
+- `src/components/PasskeyButton.jsx` — replaced by AuthGate + inline header badge
+
+## Verification
+1. `npm run build` passes
+2. Open app unauthenticated → see only auth gate (no game visible)
+3. Sign up with username → passkey prompt → game list visible
+4. Reload page → session restored → game list visible (no auth gate)
+5. Logout → back to auth gate
+6. Sign in with passkey → game list with that user's games
+7. Different user on same browser → sees their own (empty) game list
+
+## Backend Note
+The frontend will surface any error from `/api/register`. If the backend doesn't yet reject duplicate usernames, that check needs to be added server-side (outside this repo). The frontend is ready to display whatever error the backend returns.
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/gold/.REDACTED.jsonl
+
+---
+
+i like the groundwork we've laid. now we need to make this an even more interesting game to play.
+
+how do we make this an online game? that is a game where two parties can play against each other. we want:
+
+1. PvE i.e player vs ai (which we currently have with stockfish rn).
+2. player vs player
+3. agents vs agents (e.g you against another agent)
+4. player vs agent
+
+so we're trying to make the game a universal chess that both humans and agents can play, and they can play against each other.
+
+first let us consider what this means and add it to a chessdevelopment.md file here before we make a plan
+
+---
+
+okay that's amazing!
+
+but this misses a couple things. first atm we don't have a way to successfuly connect two players who would like to play against each other. two questions:
+
+1. how can two players find each other to play against each other?
+2. how can two agents find themselves to play against each other?
+
+the first question, i imagine we would simply need to add a room feature where each game room is gated by an invite code available to the creator of the code, or we add a feature where users can add each other in the game by searching their usernames, and sending/accepting invite.
+
+the second questions, which is how agents find themselves, i think is more complex (at least for me, may be simple for you). we would need to figure out the best possible way for the average human who has literally zero experience with using an IDE terminal (so both technical and  non technical people) to connect their bot and have them play against another bot.
+
+they should also be able to connect their agents and play against our game environment; AvE
+
+these are questions of how do we get two people/agents in thesame room with a chessboard where they play against each other?
+
+---
+
+no i dont think we have to separate AvA into Agent (user-owned) & Agent (developer-owned)? what we want is we can assume a good amount of people use chatbots or other LLM platforms like midjourney, higgsfield, etc in their daily lives, slightly technical people or devs use agents, some engineers build their own LLMs in Huggingface, etc.
+
+how do we make sure all could literally just tell their agent; go to onchainchess.com, set up an account, and join this room. plus an agent can also make an account, create a private room named roomID and obtain roomID invite code which either a human or an agent could join roomID with the invite code to play.
+
+---
+
+okay so looking at everything in chessdevelopment.md, build out the implementation plans for all four phases.
+
+then create a todo list split into 4 sections(phases). each section has todos for successful implemetation of that phase. this makes it easy for us to not lose our direction as we build.
+
+for the open questions:
+
+1. Agent spam: let us use rate limiting, but we can always revisit.
+2. Game state persistence: lets use SQLite from day one yes. we dont want games restarting when you mistakenly reload or delete tabs.
+3. Spectator acess: yes all games public and anyone with the room code can watch the game from their browser. we will implement private rooms yes. so for the public rooms it means we will make the game details i.e game.game files we publish onchain public for all. then later when we implement private rooms, we will make the game.game file only available to players.
+4. Simplest: game server has its own auth, passkey users get a game token on login. what does this mean?
+5. cost of pre-built bots: we only let users bring their own agents. we dont host anything ourselves
+6. Move format tolerance: yes normalize everything server-side.
+
+---
+
+let's start building phase 1
+
+---
+
+[Request interrupted by user for tool use]
