@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "89baec9c1431",
+  "session_id": "94d417ee-e0e2-4ef7-92c2-ccd11ea29aeb",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T13:16:00.426338Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "server/index.js",
+    "src/App.jsx",
+    "src/components/JoinGame.jsx",
+    "src/components/WaitingRoom.jsx",
+    "src/config.js",
+    "src/hooks/useOnlineGame.js",
+    "src/hooks/usePasskeyAuth.js",
+    "src/hooks/usePasskeyPublish.js",
+    "src/hooks/useServerAuth.js",
+    "vercel.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a863d05895a6",
+  "token_usage": {
+    "input_tokens": 41,
+    "cache_creation_tokens": 33817,
+    "cache_read_tokens": 1000204,
+    "output_tokens": 7717,
+    "api_call_count": 24
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T13:16:00.337989Z",
+    "agent_lines": 30,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 30,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-gold-VS-code-claude-chess-UI/94d417ee-e0e2-4ef7-92c2-ccd11ea29aeb.jsonl"
+}

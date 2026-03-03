@@ -3,14 +3,18 @@
   "checkpoint_id": "89baec9c1431",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "server/index.js",
     "src/App.jsx",
     "src/components/JoinGame.jsx",
     "src/components/WaitingRoom.jsx",
+    "src/config.js",
     "src/hooks/useOnlineGame.js",
-    "src/hooks/useServerAuth.js"
+    "src/hooks/usePasskeyAuth.js",
+    "src/hooks/usePasskeyPublish.js",
+    "src/hooks/useServerAuth.js",
+    "vercel.json"
   ],
   "sessions": [
     {
@@ -19,13 +23,20 @@
       "context": "/89/baec9c1431/0/context.md",
       "content_hash": "/89/baec9c1431/0/content_hash.txt",
       "prompt": "/89/baec9c1431/0/prompt.txt"
+    },
+    {
+      "metadata": "/89/baec9c1431/1/metadata.json",
+      "transcript": "/89/baec9c1431/1/full.jsonl",
+      "context": "/89/baec9c1431/1/context.md",
+      "content_hash": "/89/baec9c1431/1/content_hash.txt",
+      "prompt": "/89/baec9c1431/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 120,
-    "cache_creation_tokens": 323196,
-    "cache_read_tokens": 6682368,
-    "output_tokens": 27938,
-    "api_call_count": 82
+    "input_tokens": 161,
+    "cache_creation_tokens": 357013,
+    "cache_read_tokens": 7682572,
+    "output_tokens": 35655,
+    "api_call_count": 106
   }
 }
