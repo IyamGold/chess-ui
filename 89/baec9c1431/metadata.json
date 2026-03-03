@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "89baec9c1431",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "server/index.js",
+    "src/App.jsx",
+    "src/components/JoinGame.jsx",
+    "src/components/WaitingRoom.jsx",
+    "src/hooks/useOnlineGame.js",
+    "src/hooks/useServerAuth.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/89/baec9c1431/0/metadata.json",
+      "transcript": "/89/baec9c1431/0/full.jsonl",
+      "context": "/89/baec9c1431/0/context.md",
+      "content_hash": "/89/baec9c1431/0/content_hash.txt",
+      "prompt": "/89/baec9c1431/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 120,
+    "cache_creation_tokens": 323196,
+    "cache_read_tokens": 6682368,
+    "output_tokens": 27938,
+    "api_call_count": 82
+  }
+}
