@@ -12,8 +12,7 @@ import { createGame, saveGame, loadGame, markGamePublished, setCurrentUser } fro
 import { usePasskeyAuth } from './hooks/usePasskeyAuth';
 import { usePasskeyPublish } from './hooks/usePasskeyPublish';
 import { useServerAuth } from './hooks/useServerAuth';
-
-const SERVER_BASE = 'http://localhost:3001';
+import { GAME_SERVER_URL } from './config';
 
 // Persist/restore online game session across reloads
 const SS_ONLINE_KEY = 'online_game_session';
@@ -96,7 +95,7 @@ function App() {
     if (!serverAuth.serverToken) return;
 
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/rooms`, {
+      const resp = await fetch(`${GAME_SERVER_URL}/api/rooms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-
-const SERVER_BASE = 'http://localhost:3001';
+import { GAME_SERVER_URL } from '../config';
 
 function JoinGame({ serverToken, onJoined, onCancel }) {
   const [inviteCode, setInviteCode] = useState('');
@@ -18,7 +17,7 @@ function JoinGame({ serverToken, onJoined, onCancel }) {
     setLoading(true);
 
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/rooms/join`, {
+      const resp = await fetch(`${GAME_SERVER_URL}/api/rooms/join`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

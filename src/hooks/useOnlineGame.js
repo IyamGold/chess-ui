@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-
-const SERVER_BASE = 'http://localhost:3001';
-const WS_BASE = 'ws://localhost:3001';
+import { GAME_SERVER_URL, GAME_WS_URL } from '../config';
 
 export function useOnlineGame({ serverToken, roomId }) {
   const [board, setBoard] = useState(null);
@@ -28,7 +26,7 @@ export function useOnlineGame({ serverToken, roomId }) {
     if (!serverToken || !roomId) return;
 
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/rooms/${roomId}`, {
+      const resp = await fetch(`${GAME_SERVER_URL}/api/rooms/${roomId}`, {
         headers: { 'Authorization': `Bearer ${serverToken}` },
       });
 
@@ -71,7 +69,7 @@ export function useOnlineGame({ serverToken, roomId }) {
   useEffect(() => {
     if (!serverToken || !roomId) return;
 
-    const ws = new WebSocket(`${WS_BASE}/api/rooms/${roomId}/ws?token=${serverToken}`);
+    const ws = new WebSocket(`${GAME_WS_URL}/api/rooms/${roomId}/ws?token=${serverToken}`);
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
@@ -125,7 +123,7 @@ export function useOnlineGame({ serverToken, roomId }) {
     if (!serverToken || !roomId) return { ok: false };
 
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/rooms/${roomId}/move`, {
+      const resp = await fetch(`${GAME_SERVER_URL}/api/rooms/${roomId}/move`, {
         method: 'POST',
         headers: headers(),
         body: JSON.stringify({ move: uciStr }),

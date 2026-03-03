@@ -2,8 +2,7 @@ import { useCallback } from 'react';
 import { encodeFunctionData } from 'viem';
 import { formatMoves } from './usePublishGame';
 import { chessLedgerAbi, CHESS_LEDGER_ADDRESS } from '../contracts/chessLedgerAbi';
-
-const API_BASE = 'http://localhost:3000';
+import { PASSKEY_SERVER_URL } from '../config';
 
 // --- Helpers (ported from demo.html) ---
 
@@ -78,7 +77,7 @@ export function usePasskeyPublish({ account, credentialId, rawId }) {
       });
 
       // 2. Get challenge from server
-      const challengeResp = await fetch(`${API_BASE}/api/get-challenge-v2`, {
+      const challengeResp = await fetch(`${PASSKEY_SERVER_URL}/api/get-challenge-v2`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -112,7 +111,7 @@ export function usePasskeyPublish({ account, credentialId, rawId }) {
       const challengeIndex = clientDataJSON.indexOf('"challenge":"');
 
       // 5. Submit signed transaction
-      const submitResp = await fetch(`${API_BASE}/api/submit-execution-v2`, {
+      const submitResp = await fetch(`${PASSKEY_SERVER_URL}/api/submit-execution-v2`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

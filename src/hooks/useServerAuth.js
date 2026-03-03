@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-
-const SERVER_BASE = 'http://localhost:3001';
+import { GAME_SERVER_URL } from '../config';
 const SS_TOKEN_KEY = 'server_auth_token';
 
 export function useServerAuth({ isAuthenticated, account, username }) {
@@ -28,7 +27,7 @@ export function useServerAuth({ isAuthenticated, account, username }) {
 
     async function bridge() {
       try {
-        const resp = await fetch(`${SERVER_BASE}/api/auth/token`, {
+        const resp = await fetch(`${GAME_SERVER_URL}/api/auth/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ passkeyAddress: account, username }),

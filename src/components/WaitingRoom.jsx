@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-
-const WS_BASE = 'ws://localhost:3001';
+import { GAME_WS_URL } from '../config';
 
 function WaitingRoom({ inviteCode, serverToken, roomId, onGameStart, onCancel }) {
   const [copied, setCopied] = useState(false);
@@ -9,7 +8,7 @@ function WaitingRoom({ inviteCode, serverToken, roomId, onGameStart, onCancel })
   useEffect(() => {
     if (!serverToken || !roomId) return;
 
-    const ws = new WebSocket(`${WS_BASE}/api/rooms/${roomId}/ws?token=${serverToken}`);
+    const ws = new WebSocket(`${GAME_WS_URL}/api/rooms/${roomId}/ws?token=${serverToken}`);
     wsRef.current = ws;
 
     ws.onmessage = (event) => {

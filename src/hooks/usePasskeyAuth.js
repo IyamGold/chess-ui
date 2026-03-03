@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-
-const API_BASE = 'http://localhost:3000';
+import { PASSKEY_SERVER_URL } from '../config';
 const LS_KEYS = {
   credentialId: 'passkey_credentialId',
   rawId: 'passkey_rawId',
@@ -99,7 +98,7 @@ export function usePasskeyAuth() {
     const credId = base64urlEncode(credential.rawId);
 
     // 3. Register on server (deploys smart account)
-    const resp = await fetch(`${API_BASE}/api/register`, {
+    const resp = await fetch(`${PASSKEY_SERVER_URL}/api/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credentialId: credId, pubKeyX, pubKeyY, username: trimmed }),
@@ -128,7 +127,7 @@ export function usePasskeyAuth() {
     const credId = base64urlEncode(assertion.rawId);
 
     // 2. Look up account on server
-    const resp = await fetch(`${API_BASE}/api/login`, {
+    const resp = await fetch(`${PASSKEY_SERVER_URL}/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credentialId: credId }),
