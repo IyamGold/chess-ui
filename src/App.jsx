@@ -1,28 +1,136 @@
-import { useState } from 'react';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useState, useEffect } from 'react';
+
 import './App.css';
 import Chessboard from './Chessboard';
 import GameList from './components/GameList';
-import { createGame, saveGame, loadGame, markGamePublished } from './utils/gameManager';
-import { usePublishGame } from './hooks/usePublishGame';
+import AuthGate from './components/AuthGate';
+import GameSetup from './components/GameSetup';
+import JoinGame from './components/JoinGame';
+import WaitingRoom from './components/WaitingRoom';
+import OnlineChessboard from './components/OnlineChessboard';
+import { createGame, saveGame, loadGame, markGamePublished, setCurrentUser } from './utils/gameManager';
+import { usePasskeyAuth } from './hooks/usePasskeyAuth';
+import { usePasskeyPublish } from './hooks/usePasskeyPublish';
+import { useServerAuth } from './hooks/useServerAuth';
+
+const SERVER_BASE = 'http://localhost:3001';
+
+// Persist/restore online game session across reloads
+const SS_ONLINE_KEY = 'online_game_session';
+
+function saveOnlineSession(view, roomId, inviteCode) {
+  if (view === 'online' || view === 'waiting') {
+    sessionStorage.setItem(SS_ONLINE_KEY, JSON.stringify({ view, roomId, inviteCode }));
+  } else {
+    sessionStorage.removeItem(SS_ONLINE_KEY);
+  }
+}
+
+function loadOnlineSession() {
+  try {
+    const raw = sessionStorage.getItem(SS_ONLINE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
 
 function App() {
-  const [view, setView] = useState('list'); // 'list' | 'setup' | 'playing'
+  const saved = loadOnlineSession();
+  const [view, setView] = useState(saved?.view || 'list');
   const [activeGame, setActiveGame] = useState(null);
-  const [setupColor, setSetupColor] = useState('white');
-  const [publishStatus, setPublishStatus] = useState(null); // null | 'pending' | 'success' | 'error'
+  const [publishStatus, setPublishStatus] = useState(null);
 
-  const { publishGame } = usePublishGame();
+  // Online game state
+  const [onlineRoomId, setOnlineRoomId] = useState(saved?.roomId || null);
+  const [onlineInviteCode, setOnlineInviteCode] = useState(saved?.inviteCode || null);
+
+  const passkey = usePasskeyAuth();
+  const serverAuth = useServerAuth({
+    isAuthenticated: passkey.isAuthenticated,
+    account: passkey.account,
+    username: passkey.username,
+  });
+  const { publishGame: passkeyPublish } = usePasskeyPublish({
+    account: passkey.account,
+    credentialId: passkey.credentialId,
+    rawId: passkey.rawId,
+  });
+
+  // Persist online session to sessionStorage on state changes
+  useEffect(() => {
+    saveOnlineSession(view, onlineRoomId, onlineInviteCode);
+  }, [view, onlineRoomId, onlineInviteCode]);
+
+  // Scope game storage to the authenticated user
+  useEffect(() => {
+    if (passkey.isAuthenticated && passkey.account) {
+      setCurrentUser(passkey.account);
+    } else {
+      setCurrentUser(null);
+    }
+  }, [passkey.isAuthenticated, passkey.account]);
+
+  const handleLogout = () => {
+    passkey.logout();
+    serverAuth.logout();
+    setActiveGame(null);
+    setPublishStatus(null);
+    setOnlineRoomId(null);
+    setOnlineInviteCode(null);
+    setView('list');
+  };
 
   const handleNewGame = () => {
     setView('setup');
   };
 
-  const handleStartGame = () => {
-    const engineColor = setupColor === 'white' ? 'black' : 'white';
+  // Local AI game start
+  const handleStartLocal = (color) => {
+    const engineColor = color === 'white' ? 'black' : 'white';
     const game = createGame(engineColor);
     setActiveGame(game);
     setView('playing');
+  };
+
+  // Online game start
+  const handleStartOnline = async (color) => {
+    if (!serverAuth.serverToken) return;
+
+    try {
+      const resp = await fetch(`${SERVER_BASE}/api/rooms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serverAuth.serverToken}`,
+        },
+        body: JSON.stringify({ color, opponent: 'human' }),
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        console.error('Create room failed:', data.error);
+        return;
+      }
+
+      setOnlineRoomId(data.roomId);
+      setOnlineInviteCode(data.inviteCode);
+      setView('waiting');
+    } catch (err) {
+      console.error('Create room error:', err);
+    }
+  };
+
+  const handleJoinGame = () => {
+    setView('join');
+  };
+
+  const handleJoined = (roomId) => {
+    setOnlineRoomId(roomId);
+    setView('online');
+  };
+
+  const handleWaitingGameStart = (roomId) => {
+    setOnlineRoomId(roomId);
+    setView('online');
   };
 
   const handleResumeGame = (gameId) => {
@@ -41,8 +149,6 @@ function App() {
   const handleGameEnd = async (result) => {
     if (!activeGame) return;
 
-    // Load the latest auto-saved state (triggerSave already saved the correct final board)
-    // Don't use stale activeGame — it holds the initial state from when the game was loaded
     const latestState = loadGame(activeGame.id);
     if (latestState) {
       latestState.result = result;
@@ -50,19 +156,17 @@ function App() {
     }
     setActiveGame(prev => ({ ...prev, result }));
 
-    // Use latest state for on-chain publish (has actual move history)
     const finishedGame = latestState || { ...activeGame, result };
 
-    // Attempt on-chain publish
     setPublishStatus('pending');
-    const publishResult = await publishGame(finishedGame);
+    const publishResult = await passkeyPublish(finishedGame);
 
     if (publishResult.published) {
       setPublishStatus('success');
       markGamePublished(finishedGame.id, publishResult.txHash);
       setTimeout(() => setPublishStatus(null), 4000);
-    } else if (publishResult.reason === 'wallet-not-connected' || publishResult.reason === 'no-contract-address') {
-      setPublishStatus(null); // Silently skip
+    } else if (['no-contract-address', 'passkey-not-authenticated'].includes(publishResult.reason)) {
+      setPublishStatus(null);
     } else {
       setPublishStatus('error');
       setTimeout(() => setPublishStatus(null), 5000);
@@ -72,14 +176,27 @@ function App() {
   const handleBackToList = () => {
     setActiveGame(null);
     setPublishStatus(null);
+    setOnlineRoomId(null);
+    setOnlineInviteCode(null);
     setView('list');
   };
+
+  // Unauthenticated: show auth gate only
+  if (!passkey.isAuthenticated) {
+    return <AuthGate onSignup={passkey.signup} onLogin={passkey.login} />;
+  }
 
   return (
     <div className="app">
       <header className="app-header">
         <h1>Chess Board</h1>
-        <ConnectButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
+        <div className="passkey-status">
+          <span className="passkey-badge" title={passkey.account}>
+            {passkey.username || passkey.account?.slice(0, 6) + '...' + passkey.account?.slice(-4)}
+          </span>
+          {serverAuth.isConnected && <span className="server-badge">Online</span>}
+          <button className="passkey-logout" onClick={handleLogout}>Logout</button>
+        </div>
       </header>
 
       {publishStatus && (
@@ -95,30 +212,40 @@ function App() {
       )}
 
       {view === 'setup' && (
-        <div className="new-game-setup">
-          <h2>New Game</h2>
-          <div className="color-picker">
-            <label>Play as:</label>
-            <div className="color-options">
-              <button
-                className={`color-option ${setupColor === 'white' ? 'selected' : ''}`}
-                onClick={() => setSetupColor('white')}
-              >
-                White
-              </button>
-              <button
-                className={`color-option ${setupColor === 'black' ? 'selected' : ''}`}
-                onClick={() => setSetupColor('black')}
-              >
-                Black
-              </button>
-            </div>
-          </div>
-          <div className="setup-actions">
-            <button className="setup-back" onClick={() => setView('list')}>Cancel</button>
-            <button className="setup-start" onClick={handleStartGame}>Start Game</button>
-          </div>
-        </div>
+        <GameSetup
+          onStartLocal={handleStartLocal}
+          onStartOnline={handleStartOnline}
+          onJoinGame={handleJoinGame}
+          onCancel={() => setView('list')}
+          isServerConnected={serverAuth.isConnected}
+        />
+      )}
+
+      {view === 'join' && (
+        <JoinGame
+          serverToken={serverAuth.serverToken}
+          onJoined={handleJoined}
+          onCancel={() => setView('setup')}
+        />
+      )}
+
+      {view === 'waiting' && (
+        <WaitingRoom
+          inviteCode={onlineInviteCode}
+          serverToken={serverAuth.serverToken}
+          roomId={onlineRoomId}
+          onGameStart={handleWaitingGameStart}
+          onCancel={handleBackToList}
+        />
+      )}
+
+      {view === 'online' && onlineRoomId && (
+        <OnlineChessboard
+          key={onlineRoomId}
+          serverToken={serverAuth.serverToken}
+          roomId={onlineRoomId}
+          onBackToList={handleBackToList}
+        />
       )}
 
       {view === 'playing' && activeGame && (

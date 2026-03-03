@@ -1,0 +1,193 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+
+const SERVER_BASE = 'http://localhost:3001';
+const WS_BASE = 'ws://localhost:3001';
+
+export function useOnlineGame({ serverToken, roomId }) {
+  const [board, setBoard] = useState(null);
+  const [currentTurn, setCurrentTurn] = useState(null);
+  const [myColor, setMyColor] = useState(null);
+  const [legalMoves, setLegalMoves] = useState([]);
+  const [moveHistory, setMoveHistory] = useState([]);
+  const [gameResult, setGameResult] = useState(null);
+  const [status, setStatus] = useState('loading'); // loading | waiting | playing | finished | error
+  const [room, setRoom] = useState(null);
+  const [error, setError] = useState(null);
+
+  const wsRef = useRef(null);
+  const roomIdRef = useRef(roomId);
+  roomIdRef.current = roomId;
+
+  const headers = useCallback(() => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${serverToken}`,
+  }), [serverToken]);
+
+  // Fetch room state from server
+  const fetchRoom = useCallback(async () => {
+    if (!serverToken || !roomId) return;
+
+    try {
+      const resp = await fetch(`${SERVER_BASE}/api/rooms/${roomId}`, {
+        headers: { 'Authorization': `Bearer ${serverToken}` },
+      });
+
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        setError(data.error || 'Failed to fetch room');
+        setStatus('error');
+        return;
+      }
+
+      const data = await resp.json();
+      setBoard(data.board);
+      setCurrentTurn(data.currentTurn);
+      setMyColor(data.myColor);
+      setLegalMoves(data.legalMoves || []);
+      setMoveHistory(data.moveHistory || []);
+      setRoom(data);
+
+      if (data.result) {
+        setGameResult(data.result);
+        setStatus('finished');
+      } else if (data.status === 'waiting') {
+        setStatus('waiting');
+      } else {
+        setStatus('playing');
+      }
+    } catch (err) {
+      console.error('Fetch room error:', err);
+      setError('Network error');
+      setStatus('error');
+    }
+  }, [serverToken, roomId]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchRoom();
+  }, [fetchRoom]);
+
+  // WebSocket connection
+  useEffect(() => {
+    if (!serverToken || !roomId) return;
+
+    const ws = new WebSocket(`${WS_BASE}/api/rooms/${roomId}/ws?token=${serverToken}`);
+    wsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+
+      switch (msg.event) {
+        case 'joined':
+          // Our own connection confirmed
+          break;
+
+        case 'join':
+          // Another player joined - game is starting
+          setStatus('playing');
+          fetchRoom();
+          break;
+
+        case 'move':
+          // Opponent made a move - re-fetch full state for legal moves
+          fetchRoom();
+          break;
+
+        case 'gameOver':
+          setGameResult(msg.data.result);
+          setStatus('finished');
+          fetchRoom();
+          break;
+
+        case 'playerConnected':
+        case 'playerDisconnected':
+          // Could show connection indicators later
+          break;
+      }
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+    };
+
+    ws.onclose = () => {
+      wsRef.current = null;
+    };
+
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  }, [serverToken, roomId, fetchRoom]);
+
+  // Submit a move via REST
+  const submitMove = useCallback(async (uciStr) => {
+    if (!serverToken || !roomId) return { ok: false };
+
+    try {
+      const resp = await fetch(`${SERVER_BASE}/api/rooms/${roomId}/move`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ move: uciStr }),
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        console.error('Move rejected:', data.error);
+        return { ok: false, error: data.error };
+      }
+
+      // Re-fetch to get updated board and legal moves
+      await fetchRoom();
+
+      if (data.gameOver) {
+        setGameResult(data.result);
+        setStatus('finished');
+      }
+
+      return { ok: true, data };
+    } catch (err) {
+      console.error('Submit move error:', err);
+      return { ok: false, error: 'Network error' };
+    }
+  }, [serverToken, roomId, headers, fetchRoom]);
+
+  // Get valid target squares for a source square from server legal moves
+  const getValidMovesForSquare = useCallback((sourceIndex) => {
+    const cols = 'abcdefgh';
+    const sourceFile = cols[sourceIndex % 8];
+    const sourceRank = 8 - Math.floor(sourceIndex / 8);
+    const sourceStr = sourceFile + sourceRank;
+
+    const targets = [];
+    for (const uci of legalMoves) {
+      if (uci.startsWith(sourceStr)) {
+        const targetFile = uci[2];
+        const targetRank = parseInt(uci[3]);
+        const targetCol = cols.indexOf(targetFile);
+        const targetRow = 8 - targetRank;
+        const targetIndex = targetRow * 8 + targetCol;
+        targets.push(targetIndex);
+      }
+    }
+
+    // Deduplicate (promotions create multiple moves for same target)
+    return [...new Set(targets)];
+  }, [legalMoves]);
+
+  return {
+    board,
+    currentTurn,
+    myColor,
+    legalMoves,
+    moveHistory,
+    gameResult,
+    status,
+    error,
+    room,
+    submitMove,
+    getValidMovesForSquare,
+    fetchRoom,
+  };
+}

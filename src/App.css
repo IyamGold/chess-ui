@@ -145,3 +145,217 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
+
+/* Header authenticated status */
+.passkey-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.passkey-badge {
+  font-size: 0.8rem;
+  color: #2563eb;
+  background: #dbeafe;
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  font-weight: 500;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.passkey-logout {
+  padding: 0.35rem 0.7rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  background: #fee2e2;
+  color: #dc2626;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.passkey-logout:hover { background: #fecaca; }
+
+/* Server connection badge */
+.server-badge {
+  font-size: 0.7rem;
+  color: #16a34a;
+  background: #dcfce7;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+/* Opponent picker (GameSetup) */
+.opponent-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.opponent-picker label {
+  font-weight: 500;
+  color: #555;
+  font-size: 1.1rem;
+}
+
+.opponent-options {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.opponent-option {
+  padding: 0.6rem 1.2rem;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.opponent-option:hover:not(:disabled) {
+  border-color: #999;
+}
+
+.opponent-option.selected {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.opponent-option:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.server-offline-msg {
+  font-size: 0.8rem;
+  color: #dc2626;
+  font-style: italic;
+}
+
+/* Join Game form */
+.join-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.join-form label {
+  font-weight: 500;
+  color: #555;
+  font-size: 1.1rem;
+}
+
+.join-input {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  width: 200px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.join-input:focus {
+  border-color: #2563eb;
+}
+
+.join-error {
+  color: #dc2626;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Waiting Room */
+.waiting-room .waiting-subtitle {
+  margin: 0;
+  color: #555;
+  font-size: 1rem;
+}
+
+.invite-code-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.invite-code {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: #2563eb;
+  background: #eff6ff;
+  padding: 0.5rem 1.5rem;
+  border-radius: 12px;
+  border: 2px dashed #93c5fd;
+}
+
+.copy-button {
+  padding: 0.5rem 1rem;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.copy-button:hover {
+  background: #1d4ed8;
+}
+
+.waiting-hint {
+  margin: 0;
+  color: #888;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* Online board info bar */
+.online-info {
+  font-size: 0.9rem;
+  color: #555;
+  font-weight: 500;
+}
+
+/* Online loading/error states */
+.online-loading,
+.online-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.online-loading p {
+  color: #555;
+  font-size: 1.1rem;
+}
+
+.online-error p {
+  color: #dc2626;
+  font-size: 1.1rem;
+}
+
+.setup-start:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
