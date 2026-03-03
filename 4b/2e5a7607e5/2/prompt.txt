@@ -1,0 +1,166 @@
+Implement the following plan:
+
+# Phase 1: Game Server + Room + Agent API
+
+## Context
+
+Building the game server that serves as both the multiplayer backend AND the agent API. After this phase, any agent (Claude, GPT, a Python script) can sign up, create/join rooms, and play chess via 5 REST endpoints. WebSocket provides real-time updates for browsers. Server-side Stockfish enables AvE mode.
+
+## Server File Structure
+
+```
+server/
+  package.json              — CommonJS Node.js project
+  index.js                  — Express app, HTTP server, WebSocket setup, rate limiting
+  db.js                     — SQLite via better-sqlite3, schema creation
+  middleware/
+    auth.js                 — Bearer token validation middleware
+  routes/
+    auth.js                 — POST /api/auth/signup, POST /api/auth/token
+    rooms.js                — POST /api/rooms, POST /api/rooms/join, GET /api/rooms/:id, POST /api/rooms/:id/move
+  chess/
+    constants.js            — Copied from src/constants.js (ESM→CJS)
+    moveValidation.js       — Copied from src/moveValidation.js (ESM→CJS)
+    gameLogic.js            — NEW: unified move validation, legal moves, apply move, game result, FEN, move parsing
+    stockfishPlayer.js      — Wraps Stockfish binary via child_process for AvE
+  ws.js                     — WebSocket room subscriptions + broadcast
+```
+
+## Build Order (11 steps, each depends on prior)
+
+### Step 1: `server/package.json`
+CommonJS project (`"type": "commonjs"`). Dependencies: `express`, `better-sqlite3`, `ws`, `cors`, `uuid`, `express-rate-limit`. Scripts: `"dev": "node --watch index.js"`.
+
+### Step 2: `server/chess/constants.js`
+Copy from `src/constants.js`. Convert `export` → `module.exports`. Remove `PIECE_SYMBOLS` (UI-only). Ensure `FEN_TO_PIECE` is exported (needed by gameLogic).
+
+### Step 3: `server/chess/moveValidation.js`
+Copy from `src/moveValidation.js`. Convert `import`/`export` → `require`/`module.exports`. Zero logic changes — all 15 functions are pure JS math.
+
+### Step 4: `server/chess/gameLogic.js` (hardest file — the new unified game engine)
+
+Imports from constants + moveValidation. Provides:
+
+**Ported from `src/chessEngine.js`:**
+- `indexToAlgebraic(index)` — `file = 'a'+col, rank = 8-row`
+- `algebraicToIndex(alg)` — `col = charCode-97, row = 8-rank`
+- `boardToFEN(gameState)` — builds FEN string from board array + game state
+
+**New unified functions (currently scattered across Chessboard.jsx):**
+- `parseMove(moveStr)` — normalize UCI/dashed/spaced formats → `{ from, to, promotion }`
+- `isMoveLegal(gameState, from, to, promotion)` — piece ownership check → piece-type dispatch → simulate → king safety check. Returns `{ legal, reason? }`
+- `getLegalMoves(gameState)` — iterate all pieces × all targets, filter by isMoveLegal. Returns UCI strings `["e2e4", "g1f3", ...]`
+- `applyMove(gameState, from, to, promotion)` — all side-effects: basic move, castling rook, en passant capture, promotion, update moved pieces/en passant/half-move clock/position history/move history, toggle turn
+- `getGameResult(gameState)` — uses `getLegalMoves` for proper stalemate detection (fixes frontend bug where stalemate is never caught). Checks: checkmate, stalemate, 50-move, threefold rep, insufficient material
+- `createInitialGameState()` — fresh game with INITIAL_BOARD
+- `serializeGameState(gs)` / `deserializeGameState(row)` — Set↔Array, JSON string↔object for SQLite
+
+**Key detail — `movedPieces`:** Tracked as a Set of board indices where pieces moved FROM (for castling rights). Serialized as JSON array in SQLite, hydrated to Set on load.
+
+**Key detail — stalemate fix:** The frontend's `isCheckmate()` passes `null` for enPassant and `false` for hasMoved, and returns `inCheck` when no moves found (so stalemate returns `false`). The server's `getGameResult` uses `getLegalMoves(gameState).length === 0` instead, which properly detects stalemate.
+
+### Step 5: `server/db.js`
+SQLite via `better-sqlite3`. WAL mode + foreign keys. Three tables:
+
+```sql
+users (id INTEGER PK AUTO, username TEXT UNIQUE, token TEXT UNIQUE, passkey_address TEXT, created_at TEXT)
+rooms (id INTEGER PK AUTO, invite_code TEXT UNIQUE, white_user_id INT FK, black_user_id INT FK, status TEXT, is_stockfish INT, stockfish_level INT, result TEXT, created_at TEXT, updated_at TEXT)
+game_states (room_id INT PK FK, board TEXT, current_turn TEXT, move_history TEXT, en_passant_target INT, moved_pieces TEXT, half_move_clock INT, position_history TEXT, updated_at TEXT)
+```
+
+Indexes on `rooms.invite_code` and `users.token`.
+
+### Step 6: `server/middleware/auth.js`
+Extract `Authorization: Bearer <token>`, look up user in SQLite, attach `req.user = { id, username, passkey_address }`. Return 401 if missing/invalid.
+
+### Step 7: `server/routes/auth.js`
+- `POST /api/auth/signup` — validate username (unique, 3-32 chars, alphanumeric+hyphens), generate UUID token, insert user, return `{ token, username }`
+- `POST /api/auth/token` — bridge for passkey users: `{ passkeyAddress, username }` → find-or-create user by passkey_address, return `{ token, username }`
+
+### Step 8: `server/routes/rooms.js` (second hardest file)
+- `POST /api/rooms` — create room with invite code, assign creator to chosen color (white/black/random). If `opponent: "stockfish"`, create a system user for Stockfish seat, set status to `playing`. Initialize game_states row. Return `{ roomId, inviteCode, color }`.
+- `POST /api/rooms/join` — look up room by invite code, verify `status = 'waiting'`, assign joiner to empty seat, set `status = 'playing'`, broadcast `join` event via WebSocket. Return `{ roomId, color }`.
+- `GET /api/rooms/:id` — load room + game state, compute FEN + legal moves, determine `myColor` from req.user, return full state.
+- `POST /api/rooms/:id/move` — parse move, load+deserialize game state, verify player's turn, call `isMoveLegal`, if illegal return `{ error, legalMoves }` (track consecutive illegal count, forfeit at 3). Call `applyMove`, check `getGameResult`, persist to SQLite, broadcast `move` event. If AvE and now Stockfish's turn, trigger async Stockfish move. Return `{ ok, fen, gameOver?, result? }`.
+
+**Invite code generation:** Pick from chess words (ROOK, KING, PAWN, MATE, MOVE, PLAY, GAME, DRAW) + 2-digit number → e.g., `ROOK42`. Retry if collision.
+
+### Step 9: `server/ws.js`
+- `noServer: true` WebSocket with manual `upgrade` handling for auth before connection
+- Parse URL: `/api/rooms/:id/ws?token=xxx`
+- Track clients per room: `Map<roomId, Set<{ ws, userId, role }>>`
+- Auto-detect role: player (userId matches room seat) or spectator
+- `broadcast(roomId, event, data, excludeUserId)` — send to all room clients except sender
+- Events: `joined` (on connect), `move` (new move), `join` (opponent joined), `gameOver` (result)
+- Clean up on disconnect
+
+### Step 10: `server/chess/stockfishPlayer.js`
+- `StockfishPlayer` class wrapping `child_process.spawn('stockfish')`
+- UCI protocol over stdin/stdout: `uci` → `setoption name Skill Level` → `position fen` → `go movetime 1000`
+- `async getBestMove(fen)` → returns `{ from: "e2", to: "e4", promotion: null }`
+- Graceful handling if Stockfish binary not installed (log warning, reject AvE room creation with 503)
+- 1-second move delay for natural feel
+
+### Step 11: `server/index.js`
+- Express app with JSON parser, CORS (allow `:5173`), rate limiting
+- Mount: `/api/auth` (signup limiter: 5/min/IP), `/api/rooms` (auth middleware + move limiter: 60/min/token)
+- Create HTTP server, attach WebSocket via `setupWebSocket(server, db)`
+- Inject `broadcast` into rooms routes
+- Room expiry interval: every 5 min, delete rooms where `status = 'waiting'` AND older than 15 min
+- Listen on `:3001`
+
+## Key Pitfalls to Watch
+
+1. **ESM→CJS conversion**: Every `import` → `require`, every `export` removed, single `module.exports` at bottom. Miss one = silent `undefined`.
+2. **`movedPieces` serialization**: Set in memory, JSON array in SQLite. Must serialize/deserialize on every DB read/write.
+3. **SQLite concurrency**: Use `BEGIN IMMEDIATE` transactions for move submission to prevent race conditions on the same game.
+4. **Stockfish binary**: Must be installed (`brew install stockfish`). Handle ENOENT gracefully.
+5. **`isCheckmate` stalemate bug**: Don't use it for game-end detection. Use `getLegalMoves().length === 0` + check status instead.
+6. **Room expiry**: Only expire `waiting` rooms, never `playing` rooms.
+
+## Verification Plan
+
+After building, test with curl:
+```bash
+# 1. Signup two agents
+curl -X POST localhost:3001/api/auth/signup -H 'Content-Type: application/json' -d '{"username":"agent1"}'
+curl -X POST localhost:3001/api/auth/signup -H 'Content-Type: application/json' -d '{"username":"agent2"}'
+
+# 2. Agent1 creates room
+curl -X POST localhost:3001/api/rooms -H 'Authorization: Bearer <token1>' -H 'Content-Type: application/json' -d '{"color":"white"}'
+
+# 3. Agent2 joins
+curl -X POST localhost:3001/api/rooms/join -H 'Authorization: Bearer <token2>' -H 'Content-Type: application/json' -d '{"inviteCode":"ROOK42"}'
+
+# 4. Get game state
+curl localhost:3001/api/rooms/1 -H 'Authorization: Bearer <token1>'
+
+# 5. Make moves (Scholar's Mate: 1.e4 e5 2.Bc4 Nc6 3.Qh5 Nf6 4.Qxf7#)
+curl -X POST localhost:3001/api/rooms/1/move -H 'Authorization: Bearer <token1>' -H 'Content-Type: application/json' -d '{"move":"e2e4"}'
+# ... etc, verify game end detection
+
+# 6. Test illegal move returns error + legal moves
+curl -X POST localhost:3001/api/rooms/1/move -H 'Authorization: Bearer <token1>' -H 'Content-Type: application/json' -d '{"move":"e2e5"}'
+
+# 7. Test AvE: create room with Stockfish
+curl -X POST localhost:3001/api/rooms -H 'Authorization: Bearer <token1>' -H 'Content-Type: application/json' -d '{"color":"white","opponent":"stockfish","stockfishLevel":5}'
+
+# 8. Test WebSocket: wscat -c "ws://localhost:3001/api/rooms/1/ws?token=<token>"
+```
+
+Also: `npm run dev` starts without errors, server logs all requests.
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/gold/.claude/projects/-Users-gold-VS-code-claude-chess-UI/5758b04c-a611-4feb-a156-e18be801ec4e.jsonl
+
+---
+
+okay how do we test?
+
+---
+
+yeah write an automated test script
+
+---
+
+[Request interrupted by user for tool use]
