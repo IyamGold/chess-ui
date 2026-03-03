@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "4b2e5a7607e5",
+  "session_id": "5758b04c-a611-4feb-a156-e18be801ec4e",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T10:58:06.073308Z",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "chessdevelopment.md",
+    "src/App.css",
+    "src/App.jsx",
+    "src/components/AuthGate.css",
+    "src/components/AuthGate.jsx",
+    "src/hooks/usePasskeyAuth.js",
+    "src/hooks/usePasskeyPublish.js",
+    "src/utils/gameManager.js",
+    "tasks/todo.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "16fa3f5dad56",
+  "token_usage": {
+    "input_tokens": 70,
+    "cache_creation_tokens": 263500,
+    "cache_read_tokens": 3987479,
+    "output_tokens": 47470,
+    "api_call_count": 56
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T10:58:05.543242Z",
+    "agent_lines": 1824,
+    "human_added": 4854,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 6678,
+    "agent_percentage": 27.313566936208446
+  },
+  "transcript_path": ".claude/projects/-Users-gold-VS-code-claude-chess-UI/5758b04c-a611-4feb-a156-e18be801ec4e.jsonl"
+}
