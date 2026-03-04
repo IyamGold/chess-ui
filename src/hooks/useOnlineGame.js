@@ -87,8 +87,11 @@ export function useOnlineGame({ serverToken, roomId }) {
           break;
 
         case 'move':
-          // Opponent made a move - re-fetch full state for legal moves
-          fetchRoom();
+          // Opponent made a move - use broadcast data directly
+          if (msg.data.board) setBoard(msg.data.board);
+          if (msg.data.currentTurn) setCurrentTurn(msg.data.currentTurn);
+          if (msg.data.legalMoves) setLegalMoves(msg.data.legalMoves);
+          if (msg.data.moveHistory) setMoveHistory(msg.data.moveHistory);
           break;
 
         case 'gameOver':
@@ -136,8 +139,11 @@ export function useOnlineGame({ serverToken, roomId }) {
         return { ok: false, error: data.error };
       }
 
-      // Re-fetch to get updated board and legal moves
-      await fetchRoom();
+      // Use response data directly instead of re-fetching
+      if (data.board) setBoard(data.board);
+      if (data.currentTurn) setCurrentTurn(data.currentTurn);
+      if (data.legalMoves) setLegalMoves(data.legalMoves);
+      if (data.moveHistory) setMoveHistory(data.moveHistory);
 
       if (data.gameOver) {
         setGameResult(data.result);
