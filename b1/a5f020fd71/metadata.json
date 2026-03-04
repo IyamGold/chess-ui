@@ -3,7 +3,7 @@
   "checkpoint_id": "b1a5f020fd71",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "server/routes/rooms.js",
     "src/hooks/useOnlineGame.js"
@@ -29,13 +29,20 @@
       "context": "/b1/a5f020fd71/2/context.md",
       "content_hash": "/b1/a5f020fd71/2/content_hash.txt",
       "prompt": "/b1/a5f020fd71/2/prompt.txt"
+    },
+    {
+      "metadata": "/b1/a5f020fd71/3/metadata.json",
+      "transcript": "/b1/a5f020fd71/3/full.jsonl",
+      "context": "/b1/a5f020fd71/3/context.md",
+      "content_hash": "/b1/a5f020fd71/3/content_hash.txt",
+      "prompt": "/b1/a5f020fd71/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 557,
-    "cache_creation_tokens": 613380,
-    "cache_read_tokens": 12334885,
-    "output_tokens": 57042,
-    "api_call_count": 184
+    "input_tokens": 807,
+    "cache_creation_tokens": 1522387,
+    "cache_read_tokens": 29664248,
+    "output_tokens": 80547,
+    "api_call_count": 377
   }
 }
