@@ -1,0 +1,276 @@
+Implement the following plan:
+
+# Deploy to Vercel + Railway for Testing
+
+## Context
+Phase 1 (online PvP) works locally. We need to deploy so friends/coworkers can test real PvP on separate machines. Three services need hosting:
+
+- **Frontend** (React/Vite) → **Vercel**
+- **Game server** (Express + SQLite + WebSocket, port 3001) → **Railway**
+- **Passkey server** (Login.com demo, port 3000) → **Railway** (separate service)
+
+## Problem
+All server URLs are hardcoded to `localhost` across 7 files. Need to make them environment-driven so the same code works locally and in production.
+
+## Plan
+
+### Step 1: Create shared config for server URLs
+Create `src/config.js` — single source of truth for all server URLs. Uses Vite env vars with localhost fallbacks.
+
+```js
+export const GAME_SERVER_URL = import.meta.env.VITE_GAME_SERVER_URL || 'http://localhost:3001';
+export const GAME_WS_URL = import.meta.env.VITE_GAME_WS_URL || 'ws://localhost:3001';
+export const PASSKEY_SERVER_URL = import.meta.env.VITE_PASSKEY_SERVER_URL || 'http://localhost:3000';
+```
+
+### Step 2: Replace hardcoded URLs in 7 files
+All import from `src/config.js` instead of defining their own constants:
+
+| File | Replace | With |
+|------|---------|------|
+| `src/hooks/usePasskeyAuth.js` | `API_BASE = 'http://localhost:3000'` | `PASSKEY_SERVER_URL` |
+| `src/hooks/useServerAuth.js` | `SERVER_BASE = 'http://localhost:3001'` | `GAME_SERVER_URL` |
+| `src/hooks/useOnlineGame.js` | `SERVER_BASE` + `WS_BASE` | `GAME_SERVER_URL` + `GAME_WS_URL` |
+| `src/components/JoinGame.jsx` | `SERVER_BASE = 'http://localhost:3001'` | `GAME_SERVER_URL` |
+| `src/components/WaitingRoom.jsx` | `WS_BASE = 'ws://localhost:3001'` | `GAME_WS_URL` |
+| `src/App.jsx` | `SERVER_BASE = 'http://localhost:3001'` | `GAME_SERVER_URL` |
+| `src/hooks/usePasskeyPublish.js` | Check for hardcoded URL | `PASSKEY_SERVER_URL` |
+
+### Step 3: Make game server CORS configurable
+In `server/index.js`, read allowed origins from env var:
+
+```js
+const CORS_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/];
+```
+
+### Step 4: Make game server PORT already env-driven
+Already done: `const PORT = process.env.PORT || 3001;` — Railway sets PORT automatically.
+
+### Step 5: Make passkey server PORT configurable
+In `/Users/gold/VS code/personal projects/Login.com/packages/demo/server/index.ts`:
+Currently hardcoded `const PORT = 3000;` → change to `const PORT = process.env.PORT || 3000;`
+
+Also need CORS update if it restricts origins.
+
+### Step 6: Add Railway configs
+- `server/Procfile` or rely on `package.json` start script (already has `"start": "node index.js"` or similar)
+- Passkey server already has `"start": "tsx server/index.ts"`
+
+### Step 7: SQLite on Railway
+Railway filesystems are ephemeral. Two options:
+- **Railway Volume** (simplest) — mount a persistent volume at `/data`, point SQLite to `/data/chess.db`
+- Update `server/db.js` to use `process.env.DB_PATH || './chess.db'`
+
+### Step 8: Deploy
+1. Push game server to Railway → get URL (e.g. `https://chess-server-xxx.up.railway.app`)
+2. Push passkey server to Railway → get URL
+3. Deploy frontend to Vercel with env vars:
+   - `VITE_GAME_SERVER_URL` = Railway game server URL
+   - `VITE_GAME_WS_URL` = `wss://chess-server-xxx.up.railway.app` (wss, not ws)
+   - `VITE_PASSKEY_SERVER_URL` = Railway passkey server URL
+
+## Files Modified
+- `src/config.js` (new) — shared URL config
+- `src/hooks/usePasskeyAuth.js` — import from config
+- `src/hooks/useServerAuth.js` — import from config
+- `src/hooks/useOnlineGame.js` — import from config
+- `src/hooks/usePasskeyPublish.js` — import from config
+- `src/components/JoinGame.jsx` — import from config
+- `src/components/WaitingRoom.jsx` — import from config
+- `src/App.jsx` — import from config, remove SERVER_BASE
+- `server/index.js` — CORS from env var
+- `server/db.js` — DB path from env var
+
+## Files NOT Changed
+- `src/Chessboard.jsx` — untouched
+- All game logic files — untouched
+- Server routes — untouched
+
+## Verification
+1. `npm run dev` locally — still works with localhost fallbacks (no env vars needed)
+2. `cd server && node index.js` locally — still works
+3. Deployed Vercel URL loads, shows auth gate
+4. Online game creation works end-to-end between two different browsers/devices
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/gold/.claude/projects/-Users-gold-VS-code-claude-chess-UI/073d6337-ece2-42d6-926d-b0ab4e7b69e4.jsonl
+
+---
+
+okay how do i go about setting the VARs
+
+---
+
+okay i'm very new to this tho. which do i choose?
+
+---
+
+which do i choose?
+
+---
+
+okay how to do this? For persistent SQLite, attach a Volume mounted at /data and add:
+  CHESS_DB_PATH=/data/chess.db
+
+---
+
+hold on this is where im at. i just created the first variable and added the vercel url. how do i add the Volume mounted at /data?
+
+---
+
+oh it seems the reason why i cant find Volumes tab is because i am using the free tier version of railway... any workaround?
+
+---
+
+it seems to be failing
+
+just noticed that the vercel url https://onchainchess.vercel.app/ throws a a 404 error too
+
+---
+
+hold on, actually our lastest commit "Add online PvP multiplayer (Phase 1)" i didnt push to github yet. think we probably need to push it first before everything works right
+
+---
+
+yeah go ahead, commit and push it all
+
+---
+
+[Request interrupted by user]
+
+---
+
+nope just checl whats uncommited, i'll commit them and then push everything to github
+
+---
+
+alright everything has been pushed
+
+---
+
+error Could not find root directory: /server
+
+---
+
+actually it supports /server. but i dont know why it doesnt work
+
+---
+
+this is the only error: Could not find root directory: /server
+
+---
+
+still thesame error. or do we need a custom build server?
+
+---
+
+[Request interrupted by user]
+
+---
+
+still thesame error. or do we need a custom build command?
+
+---
+
+haha lmao we were using the wrong branch... i was using entire branch instead of the main branch that's why it couldn't find server
+
+---
+
+it worked!
+
+---
+
+okay but i think i need to generate a public domain
+
+---
+
+which are we listening on? they're asking for it
+
+---
+
+[Request interrupted by user]
+
+---
+
+which are we port listening on? they're asking for it
+
+---
+
+we should add the passkey server to railway too. how do we do that?
+
+---
+
+i checked but the CORs is not set as a variable... i should add manually right?
+
+---
+
+alright added both variable to vercel!
+
+---
+
+okay done all that
+
+---
+
+we get this error when we try to sign up
+
+Failed to execute 'json' on 'Response': Unexpected end of JSON input
+
+---
+
+status 405: method not allowed
+
+and yes both servers are running on Railway
+
+---
+
+fetch    index-CVuhgvq5.js:1697
+
+---
+
+logincom-production.up.railway.app/api/login:1
+
+---
+
+still thesame 405 error  https://onchainchess.vercel.app/logincom-production.up.railway.app/api/login 405 (Method Not Allowed)
+(anonymous) @ index-CVuhgvq5.js:1697
+await in (anonymous)
+b @ index-CVuhgvq5.js:1697
+Fy @ index-CVuhgvq5.js:9
+(anonymous) @ index-CVuhgvq5.js:9
+K1 @ index-CVuhgvq5.js:9
+I0 @ index-CVuhgvq5.js:9
+K0 @ index-CVuhgvq5.js:10
+lx @ index-CVuhgvq5.js:10
+
+---
+
+okay account creation works successfuly but we can't create online games because the "server connected" (this is what the frontend shows)
+
+---
+
+(index):1 Access to fetch at 'https://onchainchess-production.up.railway.app/api/auth/token' from origin 'https://onchainchess.vercel.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+
+---
+
+Okay everything seems to be connected!
+
+so i just tried to play an online game between two accounts on my mobile & mac. but it seems like whoever uses the code can join the game room, but the creator of the room doesnt enter the room.
+
+in summary the game doesn't automatically start for whoever creates the room
+
+---
+
+alright so it works well now but our game play is a little slow and laggy
+
+when we make a move, it doesn't work instantly, there's a lag before the piece changes position
+
+---
+
+each request takes about 1s average
+
+---
+
+commit and push
