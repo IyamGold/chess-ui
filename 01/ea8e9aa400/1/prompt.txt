@@ -1,0 +1,112 @@
+Implement the following plan:
+
+# Automated Test Script for Chess Server
+
+## Context
+The chess server (Phase 1) is built. Need a self-contained test script that starts the server, runs all API tests, and reports pass/fail. This replaces the manual curl workflow.
+
+## Approach
+Single file: `server/test.js` — a plain Node.js script (no test framework deps). Starts server as a child process, waits for ready, runs tests sequentially, reports results, cleans up.
+
+## File: `server/test.js`
+
+### Test runner structure
+- `assert(condition, label)` — simple pass/fail counter
+- `post(path, body, token)` / `get(path, token)` — fetch wrappers against `http://localhost:3001`
+- Start server via `child_process.spawn('node', ['index.js'])`, wait for "listening" on stdout
+- Run all test suites in sequence
+- Kill server + delete test DB on exit
+- Exit code 0 if all pass, 1 if any fail
+
+### Test suites (in order)
+
+**1. Health check**
+- GET /api/health → status "ok"
+
+**2. Auth — signup**
+- Valid signup → 201, has token + username
+- Duplicate username → 409
+- Too-short username → 400
+- Invalid chars → 400
+
+**3. Auth — passkey token bridge**
+- New passkey user → 201, has token
+- Same passkey again → 200, same token returned
+
+**4. Room creation**
+- Create room (white) → 201, has roomId + inviteCode + color "white"
+- Create room (random) → 201, color is "white" or "black"
+- Create Stockfish room → 503 (no Stockfish binary)
+
+**5. Room join**
+- Join by invite code → 200, opposite color assigned
+- Join non-existent code → 404
+- Join already-full room → 400
+- Creator can't join own room → 400
+
+**6. Game state**
+- GET room → status "playing", correct FEN, 20 legal moves (starting position), myColor correct
+
+**7. Move submission — full Scholar's Mate**
+- 1.e2e4 → ok, FEN updated
+- 1...e7e5 → ok
+- 2.f1c4 → ok
+- 2...b8c6 → ok
+- 3.d1h5 → ok
+- 3...g8f6 → ok
+- 4.h5f7 → ok, gameOver=true, result="1-0", reason="checkmate"
+
+**8. Illegal moves**
+- Create new game, try e2e5 → 400 with error + legalMoves + illegalMoveCount=1
+- Wrong turn → 403
+- Move after game over → 400 "not in progress"
+
+**9. Castling**
+- Play moves to clear path, castle kingside (e1g1) → ok
+- Verify rook moved (FEN shows rook on f1)
+
+**10. En passant**
+- Set up en passant position, capture → ok
+
+**11. Promotion**
+- Push pawn to 8th rank with "q" → ok, piece promoted
+- Push pawn without promotion piece → 400 "Promotion piece required"
+
+**12. WebSocket**
+- Connect to ws://localhost:3001/api/rooms/:id/ws?token=xxx
+- Verify "joined" event on connect
+- Make a move via HTTP, verify "move" event received on WS
+- Invalid token → connection rejected
+
+### Script: `"test": "node test.js"` added to package.json
+
+## Verification
+```bash
+cd server && npm test
+```
+All tests should pass with green output, exit 0.
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/gold/.REDACTED.jsonl
+
+---
+
+can you start the server so i can test on frontend?
+
+---
+
+hold on does this mean our previous chess game has been removed completely? we were playing fine with komodo dragon i think
+
+can you check which ai we're using on port 5174?
+
+---
+
+okay so if the ai we use locally works pretty well, why can't use thesame one for port 3001 which handles multiplayer rooms/websocket
+
+---
+
+yes do it
+
+---
+
+[Request interrupted by user for tool use]
