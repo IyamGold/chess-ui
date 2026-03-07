@@ -369,14 +369,14 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
     // Post-transaction side effects
     if (txResult.status === 200) {
       // Broadcast move with full state so opponent doesn't need to re-fetch
-      const opponentLegalMoves = txResult.gameResult.over ? [] : getLegalMoves(txResult.newGameState);
+      // Reuse legalMoves already computed in the transaction
       broadcast(roomId, 'move', {
         move,
         fen: txResult.body.fen,
         board: txResult.newGameState.board,
         currentTurn: txResult.newGameState.currentTurn,
         moveHistory: txResult.newGameState.moveHistory,
-        legalMoves: opponentLegalMoves
+        legalMoves: txResult.body.legalMoves
       }, req.user.id);
 
       if (txResult.gameResult.over) {

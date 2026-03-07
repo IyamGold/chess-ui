@@ -65,11 +65,14 @@ function OnlineChessboard({ serverToken, roomId, onBackToList }) {
     const isCapture = game.board[squareIndex] !== 0;
     if (isCapture) { playCaptureSound(); } else { playMoveSound(); }
 
+    // Apply move optimistically before server responds
+    game.applyOptimisticMove(draggedFrom, squareIndex);
+
     setDraggedPiece(null);
     setDraggedFrom(null);
     setValidMoves([]);
 
-    await game.submitMove(uci);
+    game.submitMove(uci);
   }, [draggedFrom, draggedPiece, validMoves, game]);
 
   const handlePromotion = useCallback(async (pieceType) => {
@@ -83,9 +86,13 @@ function OnlineChessboard({ serverToken, roomId, onBackToList }) {
     const uci = fromStr + toStr + promoChar;
 
     playCaptureSound();
+
+    // Apply promotion optimistically
+    game.applyOptimisticMove(from, to);
+
     setPromotionData(null);
 
-    await game.submitMove(uci);
+    game.submitMove(uci);
   }, [promotionData, game]);
 
   // Loading state

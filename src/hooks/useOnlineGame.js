@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GAME_SERVER_URL, GAME_WS_URL } from '../config';
+import { playMoveSound, playCaptureSound } from '../sounds';
 
 export function useOnlineGame({ serverToken, roomId }) {
   const [board, setBoard] = useState(null);
@@ -86,13 +87,28 @@ export function useOnlineGame({ serverToken, roomId }) {
           fetchRoom();
           break;
 
-        case 'move':
-          // Opponent made a move - use broadcast data directly
-          if (msg.data.board) setBoard(msg.data.board);
+        case 'move': {
+          // Play sound before updating state — check capture against current board
+          if (msg.data.move) {
+            const uci = msg.data.move;
+            const cols = 'abcdefgh';
+            const toCol = cols.indexOf(uci[2]);
+            const toRow = 8 - parseInt(uci[3]);
+            const toIndex = toRow * 8 + toCol;
+            // Use previous board state (before this move) to detect capture
+            setBoard(prev => {
+              const wasCapture = prev && prev[toIndex] !== 0;
+              if (wasCapture) { playCaptureSound(); } else { playMoveSound(); }
+              return msg.data.board || prev;
+            });
+          } else if (msg.data.board) {
+            setBoard(msg.data.board);
+          }
           if (msg.data.currentTurn) setCurrentTurn(msg.data.currentTurn);
           if (msg.data.legalMoves) setLegalMoves(msg.data.legalMoves);
           if (msg.data.moveHistory) setMoveHistory(msg.data.moveHistory);
           break;
+        }
 
         case 'gameOver':
           setGameResult(msg.data.result);
@@ -157,6 +173,19 @@ export function useOnlineGame({ serverToken, roomId }) {
     }
   }, [serverToken, roomId, headers, fetchRoom]);
 
+  // Apply move optimistically on the client before server responds
+  const applyOptimisticMove = useCallback((fromIndex, toIndex) => {
+    setBoard(prev => {
+      if (!prev) return prev;
+      const newBoard = [...prev];
+      newBoard[toIndex] = newBoard[fromIndex];
+      newBoard[fromIndex] = 0;
+      return newBoard;
+    });
+    setCurrentTurn(prev => prev === 'white' ? 'black' : 'white');
+    setLegalMoves([]); // Clear until server responds
+  }, []);
+
   // Get valid target squares for a source square from server legal moves
   const getValidMovesForSquare = useCallback((sourceIndex) => {
     const cols = 'abcdefgh';
@@ -191,6 +220,7 @@ export function useOnlineGame({ serverToken, roomId }) {
     error,
     room,
     submitMove,
+    applyOptimisticMove,
     getValidMovesForSquare,
     fetchRoom,
   };
