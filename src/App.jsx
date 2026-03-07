@@ -19,15 +19,15 @@ const SS_ONLINE_KEY = 'online_game_session';
 
 function saveOnlineSession(view, roomId, inviteCode) {
   if (view === 'online' || view === 'waiting') {
-    sessionStorage.setItem(SS_ONLINE_KEY, JSON.stringify({ view, roomId, inviteCode }));
+    localStorage.setItem(SS_ONLINE_KEY, JSON.stringify({ view, roomId, inviteCode }));
   } else {
-    sessionStorage.removeItem(SS_ONLINE_KEY);
+    localStorage.removeItem(SS_ONLINE_KEY);
   }
 }
 
 function loadOnlineSession() {
   try {
-    const raw = sessionStorage.getItem(SS_ONLINE_KEY);
+    const raw = localStorage.getItem(SS_ONLINE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
@@ -207,7 +207,12 @@ function App() {
       )}
 
       {view === 'list' && (
-        <GameList onNewGame={handleNewGame} onResumeGame={handleResumeGame} />
+        <GameList
+          onNewGame={handleNewGame}
+          onResumeGame={handleResumeGame}
+          onResumeOnline={(roomId) => { setOnlineRoomId(roomId); setView('online'); }}
+          serverToken={serverAuth.serverToken}
+        />
       )}
 
       {view === 'setup' && (

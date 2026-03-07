@@ -190,6 +190,41 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
     });
   });
 
+  // GET /api/rooms — list user's active rooms
+  const findUserRooms = db.prepare(`
+    SELECT r.*, gs.current_turn, gs.move_history
+    FROM rooms r
+    JOIN game_states gs ON gs.room_id = r.id
+    WHERE (r.white_user_id = ? OR r.black_user_id = ?)
+    AND r.status IN ('waiting', 'playing')
+    ORDER BY r.updated_at DESC
+  `);
+
+  router.get('/', (req, res) => {
+    const userId = req.user.id;
+    const rows = findUserRooms.all(userId, userId);
+
+    const rooms = rows.map(r => {
+      const whiteUser = r.white_user_id ? findUserById.get(r.white_user_id) : null;
+      const blackUser = r.black_user_id ? findUserById.get(r.black_user_id) : null;
+      const moveHistory = r.move_history ? JSON.parse(r.move_history) : [];
+
+      return {
+        roomId: r.id,
+        inviteCode: r.invite_code,
+        status: r.status,
+        white: whiteUser ? whiteUser.username : null,
+        black: blackUser ? blackUser.username : null,
+        myColor: r.white_user_id === userId ? 'white' : 'black',
+        currentTurn: r.current_turn,
+        moveCount: moveHistory.length,
+        updatedAt: r.updated_at,
+      };
+    });
+
+    res.json({ rooms });
+  });
+
   // GET /api/rooms/:id — get room and game state
   router.get('/:id', (req, res) => {
     const roomId = parseInt(req.params.id);

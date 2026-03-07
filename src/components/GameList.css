@@ -175,3 +175,39 @@
   background: #e0e0e0;
   color: #333;
 }
+
+/* Section labels for online/local separation */
+.section-label {
+  margin: 0;
+  color: #777;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  align-self: flex-start;
+}
+
+/* Online game card accent */
+.online-card {
+  border-color: #93c5fd;
+}
+
+.online-card:hover {
+  border-color: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+}
+
+.online-badge {
+  font-size: 0.7rem;
+  color: #2563eb;
+  background: #dbeafe;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.game-result.waiting {
+  background: #dbeafe;
+  color: #1e40af;
+}

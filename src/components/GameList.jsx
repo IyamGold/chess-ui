@@ -1,14 +1,35 @@
 import { useState, useEffect } from 'react';
 import { listGames, deleteGame, clearAllGames, loadGame } from '../utils/gameManager';
+import { GAME_SERVER_URL } from '../config';
 import './GameList.css';
 
-function GameList({ onNewGame, onResumeGame }) {
+function GameList({ onNewGame, onResumeGame, onResumeOnline, serverToken }) {
   const [games, setGames] = useState([]);
-
+  const [onlineGames, setOnlineGames] = useState([]);
 
   useEffect(() => {
     setGames(listGames());
   }, []);
+
+  // Fetch active online games
+  useEffect(() => {
+    if (!serverToken) return;
+
+    async function fetchOnlineGames() {
+      try {
+        const resp = await fetch(`${GAME_SERVER_URL}/api/rooms`, {
+          headers: { 'Authorization': `Bearer ${serverToken}` },
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        setOnlineGames(data.rooms || []);
+      } catch (err) {
+        console.error('Failed to fetch online games:', err);
+      }
+    }
+
+    fetchOnlineGames();
+  }, [serverToken]);
 
   const handleDelete = (e, gameId) => {
     e.stopPropagation();
@@ -101,52 +122,86 @@ ${history.join('\n')}
         )}
       </div>
 
-      {games.length === 0 && <p className="no-games">No saved games yet. Start a new game!</p>}
-
-      <div className="game-cards">
-        {games.map(game => (
-          <div key={game.id} className="game-card" onClick={() => onResumeGame(game.id)}>
-            <div className="game-card-header">
-              <span className={`game-result ${game.result === '*' ? 'in-progress' : 'finished'}`}>
-                {resultLabel(game.result)}
-              </span>
-              {game.txHash && (
-                <a
-                  href={`https://testnet.fluentscan.xyz/tx/${game.txHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="onchain-badge"
-                  onClick={(e) => e.stopPropagation()}
-                  title="View on-chain transaction"
-                >
-                  On-chain
-                </a>
-              )}
-              <div className="card-actions">
-                {game.result !== '*' && (
-                  <button
-                    className="share-btn"
-                    onClick={(e) => handleShare(e, game)}
-                    title="Download game record as XML"
-                  >
-                    Share
-                  </button>
-                )}
-                <button className="delete-btn" onClick={(e) => handleDelete(e, game.id)} title="Delete game">
-                  &times;
-                </button>
+      {/* Online games */}
+      {onlineGames.length > 0 && (
+        <>
+          <h3 className="section-label">Online Games</h3>
+          <div className="game-cards">
+            {onlineGames.map(room => (
+              <div key={`online-${room.roomId}`} className="game-card online-card" onClick={() => onResumeOnline(room.roomId)}>
+                <div className="game-card-header">
+                  <span className={`game-result ${room.status === 'waiting' ? 'waiting' : 'in-progress'}`}>
+                    {room.status === 'waiting' ? 'Waiting for opponent' : `${room.currentTurn}'s turn`}
+                  </span>
+                  <span className="online-badge">Online</span>
+                </div>
+                <div className="game-card-body">
+                  <span>{room.white || '?'} vs {room.black || '?'}</span>
+                  <span>{room.moveCount} moves</span>
+                </div>
+                <div className="game-card-footer">
+                  Playing as {room.myColor} &middot; {formatDate(room.updatedAt)}
+                </div>
               </div>
-            </div>
-            <div className="game-card-body">
-              <span>Playing as {game.engineColor === 'white' ? 'Black' : 'White'}</span>
-              <span>{game.moveCount} moves</span>
-            </div>
-            <div className="game-card-footer">
-              {formatDate(game.updatedAt)}
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
+
+      {/* Local games */}
+      {games.length > 0 && (
+        <>
+          {onlineGames.length > 0 && <h3 className="section-label">Local Games</h3>}
+          <div className="game-cards">
+            {games.map(game => (
+              <div key={game.id} className="game-card" onClick={() => onResumeGame(game.id)}>
+                <div className="game-card-header">
+                  <span className={`game-result ${game.result === '*' ? 'in-progress' : 'finished'}`}>
+                    {resultLabel(game.result)}
+                  </span>
+                  {game.txHash && (
+                    <a
+                      href={`https://testnet.fluentscan.xyz/tx/${game.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="onchain-badge"
+                      onClick={(e) => e.stopPropagation()}
+                      title="View on-chain transaction"
+                    >
+                      On-chain
+                    </a>
+                  )}
+                  <div className="card-actions">
+                    {game.result !== '*' && (
+                      <button
+                        className="share-btn"
+                        onClick={(e) => handleShare(e, game)}
+                        title="Download game record as XML"
+                      >
+                        Share
+                      </button>
+                    )}
+                    <button className="delete-btn" onClick={(e) => handleDelete(e, game.id)} title="Delete game">
+                      &times;
+                    </button>
+                  </div>
+                </div>
+                <div className="game-card-body">
+                  <span>Playing as {game.engineColor === 'white' ? 'Black' : 'White'}</span>
+                  <span>{game.moveCount} moves</span>
+                </div>
+                <div className="game-card-footer">
+                  {formatDate(game.updatedAt)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {games.length === 0 && onlineGames.length === 0 && (
+        <p className="no-games">No saved games yet. Start a new game!</p>
+      )}
     </div>
   );
 }
