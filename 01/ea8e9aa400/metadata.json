@@ -3,7 +3,7 @@
   "checkpoint_id": "01ea8e9aa400",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "server/routes/rooms.js",
     "src/App.jsx",
@@ -24,13 +24,20 @@
       "context": "/01/ea8e9aa400/1/context.md",
       "content_hash": "/01/ea8e9aa400/1/content_hash.txt",
       "prompt": "/01/ea8e9aa400/1/prompt.txt"
+    },
+    {
+      "metadata": "/01/ea8e9aa400/2/metadata.json",
+      "transcript": "/01/ea8e9aa400/2/full.jsonl",
+      "context": "/01/ea8e9aa400/2/context.md",
+      "content_hash": "/01/ea8e9aa400/2/content_hash.txt",
+      "prompt": "/01/ea8e9aa400/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 510,
-    "cache_creation_tokens": 772920,
-    "cache_read_tokens": 13352884,
-    "output_tokens": 59428,
-    "api_call_count": 172
+    "input_tokens": 760,
+    "cache_creation_tokens": 1681927,
+    "cache_read_tokens": 30682247,
+    "output_tokens": 82933,
+    "api_call_count": 365
   }
 }
