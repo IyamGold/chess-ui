@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "8ee0b6652e7e",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "server/routes/rooms.js",
+    "src/components/OnlineChessboard.jsx",
+    "src/hooks/useOnlineGame.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8e/e0b6652e7e/0/metadata.json",
+      "transcript": "/8e/e0b6652e7e/0/full.jsonl",
+      "context": "/8e/e0b6652e7e/0/context.md",
+      "content_hash": "/8e/e0b6652e7e/0/content_hash.txt",
+      "prompt": "/8e/e0b6652e7e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 561812,
+    "cache_read_tokens": 8396816,
+    "output_tokens": 33695,
+    "api_call_count": 99
+  }
+}

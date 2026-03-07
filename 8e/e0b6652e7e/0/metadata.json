@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "8ee0b6652e7e",
+  "session_id": "073d6337-ece2-42d6-926d-b0ab4e7b69e4",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T10:23:34.794714Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "server/routes/rooms.js",
+    "src/components/OnlineChessboard.jsx",
+    "src/hooks/useOnlineGame.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "8f995a2a590f",
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 561812,
+    "cache_read_tokens": 8396816,
+    "output_tokens": 33695,
+    "api_call_count": 99
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T10:23:34.378293Z",
+    "agent_lines": 44,
+    "human_added": 1,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 45,
+    "agent_percentage": 97.77777777777777
+  },
+  "transcript_path": ".claude/projects/-Users-gold-VS-code-claude-chess-UI/073d6337-ece2-42d6-926d-b0ab4e7b69e4.jsonl"
+}
