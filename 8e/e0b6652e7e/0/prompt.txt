@@ -1,0 +1,226 @@
+Implement the following plan:
+
+# Add Online Play Frontend
+
+## Context
+The server backend is fully implemented (rooms, moves, WebSocket, auth, Stockfish WASM). The frontend only supports local games (browser-side Stockfish). We need UI to create/join online rooms and play via the server.
+
+**Guiding principle:** Don't touch `Chessboard.jsx` at all. Build a parallel `OnlineChessboard` that reuses the same CSS and `Piece` component but has its own server-driven state management.
+
+## Key Facts
+- Server board format: flat `Array[64]` with same numeric piece types as client — no conversion needed
+- Server legal moves: UCI strings like `["e2e3", "e2e4", "e7e8q"]`
+- Server auth: `POST /api/auth/token { passkeyAddress, username }` → `{ token }` bridges passkey → server token
+- WebSocket: server→client only (joined, move, gameOver, join, playerConnected/Disconnected). All actions via HTTP POST.
+- All state changes (moves, joins) go through REST, not WebSocket
+
+## New Files (6)
+
+### 1. `src/hooks/useServerAuth.js`
+Bridges passkey auth to server token automatically on login.
+- On passkey `isAuthenticated` change → `POST /api/auth/token { passkeyAddress: account, username }`
+- Stores token in `sessionStorage` (re-established each browser session via passkey)
+- Returns `{ serverToken, isConnected }`
+
+### 2. `src/hooks/useOnlineGame.js`
+Core hook managing room state, WebSocket, and move submission.
+- Takes `{ serverToken, roomId }`
+- On mount: `GET /api/rooms/:id` → populates board, currentTurn, myColor, legalMoves, moveHistory
+- Opens WebSocket `ws://host/api/rooms/:id/ws?token=xxx`
+- On WS `move` event → re-fetches room state (gives us updated board + legal moves)
+- On WS `gameOver` event → sets result
+- On WS `join` event → transitions from waiting → playing, re-fetches
+- `submitMove(uciStr)` → `POST /api/rooms/:id/move`
+- `getValidMovesForSquare(index)` → filters server legalMoves by source square, returns target indices
+- Returns `{ board, currentTurn, myColor, legalMoves, moveHistory, gameResult, status, submitMove, getValidMovesForSquare, room }`
+
+### 3. `src/components/OnlineChessboard.jsx`
+Self-contained board component for online games. Duplicates the ~85 lines of board rendering JSX from Chessboard (same CSS, same `Piece` component) but wires server-driven handlers:
+- `handleDragStart` → calls `game.getValidMovesForSquare(index)` instead of local validation
+- `handleDrop` → calls `game.submitMove(uci)` instead of local state update
+- Opponent moves arrive via WebSocket → board re-renders from server state
+- Promotion: uses `needsPromotion()` from `moveValidation.js` client-side just for the dialog UX; server validates the actual move
+- Sound effects: `playMoveSound()`/`playCaptureSound()` on own moves, `playMoveSound()` on opponent moves via WS
+- Shows "Opponent's turn..." indicator when not your turn
+- Props: `{ serverToken, roomId, onBackToList }`
+
+### 4. `src/components/GameSetup.jsx`
+Replaces the inline setup JSX in App.jsx. Adds opponent type selection:
+- **Local AI** — existing behavior (browser Stockfish)
+- **Online Human** — creates room, goes to waiting screen
+- **Online Stockfish** — creates room with server Stockfish, starts immediately
+- Online options disabled with message if server not connected
+- Also has a "Join Game" button that navigates to join screen
+- Props: `{ onStartLocal, onStartOnline, onJoinGame, onCancel, isServerConnected }`
+
+### 5. `src/components/JoinGame.jsx`
+Simple invite code entry form.
+- Text input + "Join" button
+- `POST /api/rooms/join { inviteCode }` with server token
+- On success → calls `onJoined(roomId, color)`
+- Shows error on invalid/full room
+- Props: `{ serverToken, onJoined, onCancel }`
+
+### 6. `src/components/WaitingRoom.jsx`
+Displayed after creating an online human room while waiting for opponent.
+- Shows invite code in large text with copy-to-clipboard button
+- Opens WebSocket to listen for `join` event
+- On `join` → calls `onGameStart(roomId)`
+- "Cancel" button to go back
+- Props: `{ inviteCode, serverToken, roomId, onGameStart, onCancel }`
+
+## Modified Files (2)
+
+### 7. `src/App.jsx`
+- Add `useServerAuth` hook alongside existing `usePasskeyAuth`
+- Expand view state: `'list' | 'setup' | 'join' | 'waiting' | 'playing' | 'online'`
+- Add `onlineRoomId` and `onlineInviteCode` state
+- `handleStartOnline(color, opponentType)` → `POST /api/rooms` → route to 'waiting' or 'online'
+- `handleJoinedGame(roomId)` → set roomId, route to 'online'
+- Render new views: `<GameSetup>`, `<JoinGame>`, `<WaitingRoom>`, `<OnlineChessboard>`
+- Existing `{view === 'playing'}` block with local `<Chessboard>` is **completely unchanged**
+- Call `serverAuth.logout()` alongside `passkey.logout()` in handleLogout
+
+### 8. `src/App.css`
+- Add styles for new components (GameSetup opponent selector, JoinGame form, WaitingRoom invite display)
+- Keep all existing styles untouched
+
+## Files NOT Changed
+- `src/Chessboard.jsx` — zero changes, zero risk to local play
+- `src/chessEngine.js` — untouched
+- `src/moveValidation.js` — untouched (OnlineChessboard imports only `needsPromotion`)
+- `src/utils/gameManager.js` — untouched (online games don't use localStorage)
+- `server/*` — no backend changes
+
+## Implementation Order
+1. `useServerAuth.js` — no dependencies
+2. `useOnlineGame.js` — depends on server auth token pattern
+3. `OnlineChessboard.jsx` — depends on useOnlineGame
+4. `GameSetup.jsx` — standalone UI component
+5. `JoinGame.jsx` — standalone UI, uses fetch
+6. `WaitingRoom.jsx` — standalone UI, uses WebSocket
+7. `App.jsx` + `App.css` — integrates everything (last)
+
+## Verification
+1. Start server: `cd server && node index.js` — should show "Stockfish engine initialized"
+2. Start frontend: `npm run dev`
+3. **Local play unchanged:** New Game → Local AI → play works exactly as before
+4. **Online Stockfish:** New Game → Online Stockfish → board loads, server makes moves via WS
+5. **Online Human:** New Game → Online Human → shows invite code → open second browser tab → Join Game → enter code → both boards update in real-time
+6. **Join Game:** Enter invite code → board loads, moves sync via WebSocket
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/gold/.claude/projects/-Users-gold-VS-code-claude-chess-UI/fc94e207-f630-45a5-a025-4484cce4ef20.jsonl
+
+---
+
+start the server and test it
+
+---
+
+start the frontend too
+
+---
+
+<task-notification>
+<task-id>btpseza66</task-id>
+<tool-use-id>toolu_01ByoaUqXUZvac8ugQTum12f</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-gold-VS-code-claude-chess-UI/tasks/btpseza66.output</output-file>
+<status>failed</status>
+<summary>Background command "Restart server with updated CORS" failed with exit code 1</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-gold-VS-code-claude-chess-UI/tasks/btpseza66.output
+
+---
+
+okay so right now i see three opponent options: Local, Online Human, and Online Stockfish.
+
+i understand Local... but what does online human and online stockfish mean?
+
+i think we should have just two options: Local & Online
+
+local for our local stockfish and online for the PvP games where anyone can play against anyone
+
+---
+
+okay question right now if i gave you a room code to join me, you would first need to set up an account first right?
+
+---
+
+no i'm thinking every body should have an account otherwise we wouldn't be able to limit spam. this friction is not bad in this case
+
+---
+
+alright so how do we test PvP games? since we both have access to port 5175, i think we both can test.
+
+i'll create a game and send you an invite code. create an account called iamclaude, and then let me know. don't do this from backend tho, do it like any other ai or agent who doesn't have access to this code base would
+
+---
+
+amazing so right now it doesn't seem like we get that check notification during PvP, the "white is in check!" when your king is in check.
+
+notification works in PvE right now, but doesn't work in PvP games
+
+---
+
+okay works. now the new problem is when we reload we kind of lose everything. game state overrides and we go back to home page ("NEW GAME")
+
+---
+
+btw where does sqlite fall in all of this? i'm a novice so
+
+---
+
+what does local games use *localstorage* mean exactly? does this mean if we were to publish this game, local games would just be for me who installed stockfish locally or local games would simply mean PvE for everyone?
+
+---
+
+oh alright pretty cool
+
+---
+
+alright! so with all of the tiny edits we've made so far, let us list all the features we've implemented for phase 1 and add them to implementation.md under tasks directory
+
+---
+
+if i wanted to commit our progress so far, how do i do it from the terminal? im a novice but it seems like the only entire would track our commits are if they are handled directly by me
+
+so just instruct me with the commands
+
+---
+
+amazing done! from here on out i can pretty much make the commits myself
+
+---
+
+before we go into phase two, i think we should publish this vercel just for testing purposes, so we like have the full experience of what the game would look like as a site/app on our or any other person's computer.
+
+this way i can have my friends or co workers test some features, esp since this is PvP and i can't test everything by play two tabs
+
+---
+
+[Request interrupted by user]
+
+---
+
+had to correct a few things
+
+before we go into phase two, i think we should publish this to vercel just for testing purposes, so we like have the full experience of what the game would look like as a site/app on my or any other person's computer.
+
+this way i can have my friends or co workers test some features, esp since this is PvP and i can't test everything by playing two tabs
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+hey where were we?
+
+---
+
+no we already deployed it to vercel, connected both servers, passkey server and backend server to railway and then connected that to vercel
+
+---
+
+no we need to optimize. right now live gameplays are so low, need to figure out how to increase the latency
