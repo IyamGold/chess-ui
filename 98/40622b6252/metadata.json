@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9840622b6252",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/hooks/useServerAuth.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/98/40622b6252/0/metadata.json",
+      "transcript": "/98/40622b6252/0/full.jsonl",
+      "context": "/98/40622b6252/0/context.md",
+      "content_hash": "/98/40622b6252/0/content_hash.txt",
+      "prompt": "/98/40622b6252/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 173,
+    "cache_creation_tokens": 856039,
+    "cache_read_tokens": 10815556,
+    "output_tokens": 42170,
+    "api_call_count": 118
+  }
+}
