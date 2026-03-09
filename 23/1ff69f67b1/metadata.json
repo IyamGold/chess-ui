@@ -3,7 +3,7 @@
   "checkpoint_id": "231ff69f67b1",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "src/hooks/usePasskeyAuth.js"
   ],
@@ -21,13 +21,20 @@
       "context": "/23/1ff69f67b1/1/context.md",
       "content_hash": "/23/1ff69f67b1/1/content_hash.txt",
       "prompt": "/23/1ff69f67b1/1/prompt.txt"
+    },
+    {
+      "metadata": "/23/1ff69f67b1/2/metadata.json",
+      "transcript": "/23/1ff69f67b1/2/full.jsonl",
+      "context": "/23/1ff69f67b1/2/context.md",
+      "content_hash": "/23/1ff69f67b1/2/content_hash.txt",
+      "prompt": "/23/1ff69f67b1/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 525,
-    "cache_creation_tokens": 1077691,
-    "cache_read_tokens": 14449594,
-    "output_tokens": 64426,
-    "api_call_count": 181
+    "input_tokens": 775,
+    "cache_creation_tokens": 1986698,
+    "cache_read_tokens": 31778957,
+    "output_tokens": 87931,
+    "api_call_count": 374
   }
 }
