@@ -24,27 +24,32 @@ function base64urlDecode(str) {
   return bytes.buffer;
 }
 
-export function usePasskeyAuth() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [account, setAccount] = useState(null);
-  const [username, setUsername] = useState(null);
-  const [credentialId, setCredentialId] = useState(null);
-  const [rawId, setRawId] = useState(null);
-
-  // Restore session from localStorage on mount
-  useEffect(() => {
+// Restore session synchronously so downstream hooks see auth state on first render
+function getStoredSession() {
+  try {
     const storedCredId = localStorage.getItem(LS_KEYS.credentialId);
     const storedRawId = localStorage.getItem(LS_KEYS.rawId);
     const storedAccount = localStorage.getItem(LS_KEYS.account);
     if (storedCredId && storedRawId && storedAccount) {
       const parsed = JSON.parse(storedAccount);
-      setCredentialId(storedCredId);
-      setRawId(base64urlDecode(storedRawId));
-      setAccount(parsed.address);
-      setUsername(parsed.username);
-      setIsAuthenticated(true);
+      return {
+        credentialId: storedCredId,
+        rawId: base64urlDecode(storedRawId),
+        account: parsed.address,
+        username: parsed.username,
+      };
     }
-  }, []);
+  } catch {}
+  return null;
+}
+
+export function usePasskeyAuth() {
+  const stored = getStoredSession();
+  const [isAuthenticated, setIsAuthenticated] = useState(!!stored);
+  const [account, setAccount] = useState(stored?.account || null);
+  const [username, setUsername] = useState(stored?.username || null);
+  const [credentialId, setCredentialId] = useState(stored?.credentialId || null);
+  const [rawId, setRawId] = useState(stored?.rawId || null);
 
   const persistSession = useCallback((credId, rawIdBuf, address, user) => {
     localStorage.setItem(LS_KEYS.credentialId, credId);
