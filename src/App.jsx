@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import './App.css';
 import Chessboard from './Chessboard';
@@ -59,14 +59,15 @@ function App() {
     saveOnlineSession(view, onlineRoomId, onlineInviteCode);
   }, [view, onlineRoomId, onlineInviteCode]);
 
-  // Scope game storage to the authenticated user
-  useEffect(() => {
-    if (passkey.isAuthenticated && passkey.account) {
-      setCurrentUser(passkey.account);
-    } else {
-      setCurrentUser(null);
-    }
-  }, [passkey.isAuthenticated, passkey.account]);
+  // Scope game storage to the authenticated user — must be synchronous
+  // so that GameList reads the correct localStorage key on first render.
+  // (useEffect would run after child effects, causing a race condition.)
+  const prevUserRef = useRef(null);
+  const currentAccount = passkey.isAuthenticated ? passkey.account : null;
+  if (currentAccount !== prevUserRef.current) {
+    prevUserRef.current = currentAccount;
+    setCurrentUser(currentAccount);
+  }
 
   const handleLogout = () => {
     passkey.logout();

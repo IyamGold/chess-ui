@@ -652,6 +652,73 @@ After Phase 4: **the platform is robust. Games survive disconnects, multiple tim
 
 ---
 
+## Game State Persistence
+
+Both game modes fully survive tab reloads through a two-tier persistence architecture.
+
+### Local PvE Games (Human vs Stockfish)
+
+**Storage: `localStorage`**
+
+- Every move auto-saves the full game state (board, move history, turn, en passant, moved pieces, half-move clock, position history) to localStorage via `gameManager.js`
+- Games are scoped per user: `chess_{accountAddress}_game_{gameId}` (falls back to `chess_game_{gameId}` if unauthenticated)
+- A localStorage index (`chess_{accountAddress}_index`) tracks all games with metadata (id, result, move count, timestamps)
+- On reload, the game list is restored from the index, and the user can resume any in-progress game via `loadGame(gameId)`
+
+**Key files:**
+- `src/utils/gameManager.js` — create, save, load, list, delete games
+- `src/Chessboard.jsx` — calls `saveGame()` after every move
+- `src/App.jsx` — restores game list and handles `handleResumeGame()`
+
+### Online PvP Games (Server-persisted)
+
+**Storage: SQLite on the game server (port 3001)**
+
+The game server persists all state in three SQLite tables:
+
+| Table | Purpose |
+|-------|---------|
+| `users` | Accounts (username, bearer token, passkey address) |
+| `rooms` | Game rooms (invite code, player IDs, status, result) |
+| `game_states` | Full board state per room (board, turn, move history, en passant, moved pieces, half-move clock, position history) |
+
+Every move updates the `game_states` table via `server/routes/rooms.js`, so game state survives server restarts, tab reloads, and disconnects.
+
+**Client-side session pointers (localStorage):**
+
+| Key | What it stores | Purpose |
+|-----|---------------|---------|
+| `online_game_session` | View, roomId, inviteCode | Knows which online game to rejoin |
+| `server_auth_token` | Game server bearer token | Re-authenticates without re-bridging |
+| `passkey_credentialId` / `passkey_account` | Passkey session | Restores identity on reload |
+
+**Tab reload recovery flow:**
+1. Passkey session restored from localStorage
+2. Game server auth token restored from localStorage
+3. Room ID restored from `online_game_session`
+4. Full game state fetched from server via `GET /api/rooms/:id`
+5. WebSocket reconnects for real-time updates
+
+**Key files:**
+- `server/db.js` — SQLite schema and database setup
+- `server/routes/rooms.js` — persists game state after each move
+- `server/ws.js` — WebSocket reconnection handling
+- `src/hooks/useOnlineGame.js` — fetches room state on mount, reconnects WebSocket
+- `src/hooks/useServerAuth.js` — token persistence and validation
+- `src/hooks/usePasskeyAuth.js` — passkey session persistence
+- `src/App.jsx` — saves/loads online session pointer
+
+### The Two Servers
+
+| Server | Port | Persists |
+|--------|------|----------|
+| **Passkey auth server** | 3000 | User credentials, smart accounts |
+| **Game server** | 3001 | Users, rooms, game states (all in SQLite) |
+
+The bridge between them: after passkey login, the browser calls `POST /api/auth/token` to exchange the passkey session for a game-server bearer token, which is cached in localStorage.
+
+---
+
 ## Decisions (all resolved)
 
 - **Server location**: Add `server/` directory to this repo. Game server runs on its own port (e.g., `:3001` for dev, or same origin in production).
