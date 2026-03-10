@@ -3,7 +3,7 @@
   "checkpoint_id": "7208d883ce9e",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "src/hooks/useServerAuth.js"
   ],
@@ -21,13 +21,20 @@
       "context": "/72/08d883ce9e/1/context.md",
       "content_hash": "/72/08d883ce9e/1/content_hash.txt",
       "prompt": "/72/08d883ce9e/1/prompt.txt"
+    },
+    {
+      "metadata": "/72/08d883ce9e/2/metadata.json",
+      "transcript": "/72/08d883ce9e/2/full.jsonl",
+      "context": "/72/08d883ce9e/2/context.md",
+      "content_hash": "/72/08d883ce9e/2/content_hash.txt",
+      "prompt": "/72/08d883ce9e/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 539,
-    "cache_creation_tokens": 1258939,
-    "cache_read_tokens": 14994196,
-    "output_tokens": 69629,
-    "api_call_count": 187
+    "input_tokens": 789,
+    "cache_creation_tokens": 2167946,
+    "cache_read_tokens": 32323559,
+    "output_tokens": 93134,
+    "api_call_count": 380
   }
 }
