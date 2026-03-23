@@ -433,6 +433,52 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
     }
   });
 
+  // Resign
+  router.post('/:id/resign', (req, res) => {
+    const roomId = parseInt(req.params.id);
+    if (isNaN(roomId)) {
+      return res.status(400).json({ error: 'Invalid room ID' });
+    }
+
+    const submitResign = db.transaction(() => {
+      const room = findRoomById.get(roomId);
+      if (!room) {
+        return { status: 404, body: { error: 'Room not found' } };
+      }
+
+      if (room.status !== 'playing') {
+        return { status: 400, body: { error: 'Game is not in progress' } };
+      }
+
+      const isWhite = req.user.id === room.white_user_id;
+      const isBlack = req.user.id === room.black_user_id;
+
+      if (!isWhite && !isBlack) {
+        return { status: 403, body: { error: 'You are not a player in this game' } };
+      }
+
+      const result = isWhite ? '0-1' : '1-0';
+      updateRoomResult.run(result, roomId);
+
+      return {
+        status: 200,
+        body: { ok: true, result },
+        result,
+        resignedColor: isWhite ? 'white' : 'black'
+      };
+    });
+
+    const txResult = submitResign();
+    res.status(txResult.status).json(txResult.body);
+
+    if (txResult.status === 200) {
+      broadcast(roomId, 'gameOver', {
+        result: txResult.result,
+        reason: 'resignation'
+      });
+    }
+  });
+
   // Async Stockfish move
   function triggerStockfishMove(roomId) {
     setTimeout(async () => {
