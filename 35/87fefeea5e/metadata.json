@@ -3,8 +3,9 @@
   "checkpoint_id": "3587fefeea5e",
   "strategy": "manual-commit",
   "branch": "mcp-server",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
+    "mcp/index.js",
     "server/routes/rooms.js",
     "src/components/GameList.jsx"
   ],
@@ -22,13 +23,20 @@
       "context": "/35/87fefeea5e/1/context.md",
       "content_hash": "/35/87fefeea5e/1/content_hash.txt",
       "prompt": "/35/87fefeea5e/1/prompt.txt"
+    },
+    {
+      "metadata": "/35/87fefeea5e/2/metadata.json",
+      "transcript": "/35/87fefeea5e/2/full.jsonl",
+      "context": "/35/87fefeea5e/2/context.md",
+      "content_hash": "/35/87fefeea5e/2/content_hash.txt",
+      "prompt": "/35/87fefeea5e/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 363,
-    "cache_creation_tokens": 1461139,
-    "cache_read_tokens": 15604736,
-    "output_tokens": 70482,
-    "api_call_count": 222
+    "input_tokens": 514,
+    "cache_creation_tokens": 1526246,
+    "cache_read_tokens": 19062417,
+    "output_tokens": 83047,
+    "api_call_count": 304
   }
 }
