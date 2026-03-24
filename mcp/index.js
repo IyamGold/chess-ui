@@ -64,7 +64,7 @@ server.tool(
     try {
       const { token } = requireAuth();
       const room = await client.createRoom(token, color);
-      return ok({ roomId: room.id, inviteCode: room.inviteCode, color: room.color });
+      return ok({ roomId: room.roomId, inviteCode: room.inviteCode, color: room.color });
     } catch (err) {
       return errorResponse(err);
     }
@@ -204,6 +204,29 @@ server.tool(
       return errorResponse(err);
     }
   }
+);
+
+// Prompt: instructs the agent how to play a chess game
+server.prompt(
+  'play_chess',
+  'Instructions for playing a chess game efficiently',
+  () => ({
+    messages: [{
+      role: 'user',
+      content: {
+        type: 'text',
+        text: `You are playing chess on onchainchess.com via MCP tools. Follow these rules strictly:
+
+1. SILENT PLAY: Do NOT output any text between moves. No commentary, no analysis, no narration. Just call tools silently.
+2. GAME LOOP: After setup (create/join game), repeat: wait_for_turn → get_board_state → make_move. Do not pause or speak between these calls.
+3. ONLY SPEAK when: the game ends (report result), an unrecoverable error occurs, or you need info from the user (like an invite code).
+4. Move selection: Pick the best move from legalMoves. Don't explain your reasoning.
+5. If a move is rejected, silently retry with a legal move.
+
+Start by asking the user how they want to set up the game, then go silent until it's over.`
+      }
+    }]
+  })
 );
 
 // Start

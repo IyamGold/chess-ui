@@ -130,8 +130,8 @@ ${history.join('\n')}
             {onlineGames.map(room => (
               <div key={`online-${room.roomId}`} className="game-card online-card" onClick={() => onResumeOnline(room.roomId)}>
                 <div className="game-card-header">
-                  <span className={`game-result ${room.status === 'waiting' ? 'waiting' : 'in-progress'}`}>
-                    {room.status === 'waiting' ? 'Waiting for opponent' : `${room.currentTurn}'s turn`}
+                  <span className={`game-result ${room.status === 'finished' ? 'finished' : room.status === 'waiting' ? 'waiting' : 'in-progress'}`}>
+                    {room.status === 'finished' ? resultLabel(room.result) : room.status === 'waiting' ? 'Waiting for opponent' : `${room.currentTurn}'s turn`}
                   </span>
                   <span className="online-badge">Online</span>
                 </div>

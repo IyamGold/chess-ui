@@ -196,7 +196,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
     FROM rooms r
     JOIN game_states gs ON gs.room_id = r.id
     WHERE (r.white_user_id = ? OR r.black_user_id = ?)
-    AND r.status IN ('waiting', 'playing')
+    AND r.status IN ('waiting', 'playing', 'finished')
     ORDER BY r.updated_at DESC
   `);
 
@@ -213,6 +213,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
         roomId: r.id,
         inviteCode: r.invite_code,
         status: r.status,
+        result: r.result,
         white: whiteUser ? whiteUser.username : null,
         black: blackUser ? blackUser.username : null,
         myColor: r.white_user_id === userId ? 'white' : 'black',
