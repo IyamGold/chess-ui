@@ -3,7 +3,7 @@
   "checkpoint_id": "3587fefeea5e",
   "strategy": "manual-commit",
   "branch": "mcp-server",
-  "checkpoints_count": 3,
+  "checkpoints_count": 5,
   "files_touched": [
     "mcp/index.js",
     "server/routes/rooms.js",
@@ -30,13 +30,20 @@
       "context": "/35/87fefeea5e/2/context.md",
       "content_hash": "/35/87fefeea5e/2/content_hash.txt",
       "prompt": "/35/87fefeea5e/2/prompt.txt"
+    },
+    {
+      "metadata": "/35/87fefeea5e/3/metadata.json",
+      "transcript": "/35/87fefeea5e/3/full.jsonl",
+      "context": "/35/87fefeea5e/3/context.md",
+      "content_hash": "/35/87fefeea5e/3/content_hash.txt",
+      "prompt": "/35/87fefeea5e/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 514,
-    "cache_creation_tokens": 1526246,
-    "cache_read_tokens": 19062417,
-    "output_tokens": 83047,
-    "api_call_count": 304
+    "input_tokens": 579,
+    "cache_creation_tokens": 1599076,
+    "cache_read_tokens": 20240255,
+    "output_tokens": 94782,
+    "api_call_count": 339
   }
 }
