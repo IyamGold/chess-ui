@@ -3,7 +3,7 @@
   "checkpoint_id": "3587fefeea5e",
   "strategy": "manual-commit",
   "branch": "mcp-server",
-  "checkpoints_count": 5,
+  "checkpoints_count": 6,
   "files_touched": [
     ".claude/settings.local.json",
     ".claude/worktrees/beautiful-gates",
@@ -46,13 +46,20 @@
       "context": "/35/87fefeea5e/4/context.md",
       "content_hash": "/35/87fefeea5e/4/content_hash.txt",
       "prompt": "/35/87fefeea5e/4/prompt.txt"
+    },
+    {
+      "metadata": "/35/87fefeea5e/5/metadata.json",
+      "transcript": "/35/87fefeea5e/5/full.jsonl",
+      "context": "/35/87fefeea5e/5/context.md",
+      "content_hash": "/35/87fefeea5e/5/content_hash.txt",
+      "prompt": "/35/87fefeea5e/5/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 926,
-    "cache_creation_tokens": 1665883,
-    "cache_read_tokens": 23551713,
-    "output_tokens": 114788,
-    "api_call_count": 399
+    "input_tokens": 1176,
+    "cache_creation_tokens": 2574890,
+    "cache_read_tokens": 40881076,
+    "output_tokens": 138293,
+    "api_call_count": 592
   }
 }
