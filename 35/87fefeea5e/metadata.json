@@ -5,6 +5,8 @@
   "branch": "mcp-server",
   "checkpoints_count": 5,
   "files_touched": [
+    ".claude/settings.local.json",
+    ".claude/worktrees/beautiful-gates",
     "mcp/index.js",
     "server/routes/rooms.js",
     "src/components/GameList.jsx"
@@ -37,13 +39,20 @@
       "context": "/35/87fefeea5e/3/context.md",
       "content_hash": "/35/87fefeea5e/3/content_hash.txt",
       "prompt": "/35/87fefeea5e/3/prompt.txt"
+    },
+    {
+      "metadata": "/35/87fefeea5e/4/metadata.json",
+      "transcript": "/35/87fefeea5e/4/full.jsonl",
+      "context": "/35/87fefeea5e/4/context.md",
+      "content_hash": "/35/87fefeea5e/4/content_hash.txt",
+      "prompt": "/35/87fefeea5e/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 579,
-    "cache_creation_tokens": 1599076,
-    "cache_read_tokens": 20240255,
-    "output_tokens": 94782,
-    "api_call_count": 339
+    "input_tokens": 926,
+    "cache_creation_tokens": 1665883,
+    "cache_read_tokens": 23551713,
+    "output_tokens": 114788,
+    "api_call_count": 399
   }
 }
