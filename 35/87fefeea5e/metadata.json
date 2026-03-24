@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "3587fefeea5e",
+  "strategy": "manual-commit",
+  "branch": "mcp-server",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/components/GameList.jsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/35/87fefeea5e/0/metadata.json",
+      "transcript": "/35/87fefeea5e/0/full.jsonl",
+      "context": "/35/87fefeea5e/0/context.md",
+      "content_hash": "/35/87fefeea5e/0/content_hash.txt",
+      "prompt": "/35/87fefeea5e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 261,
+    "cache_creation_tokens": 1399188,
+    "cache_read_tokens": 12785410,
+    "output_tokens": 61293,
+    "api_call_count": 154
+  }
+}
