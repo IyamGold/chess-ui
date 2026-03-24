@@ -1,0 +1,27 @@
+Use the play_chess prompt, then let's play chess
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+waiting on you. what happened? i made my move but seems you didn't receive the move yet?
+
+---
+
+why aren't you using wait_for_turn?
+
+---
+
+it was a good! but why do you have to display these diagrams for every move you play? does it not slow you down?
+
+---
+
+the game we just played room_id: 14 is not displayed in my game history on my profile.
+
+can you check if it was registered in the backend and see why its not displayed on frontend?
+
+---
+
+yes
