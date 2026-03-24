@@ -1,0 +1,247 @@
+Implement the following plan:
+
+# MCP Server for OnChainChess
+
+## Context
+We want AI agents (Claude, GPT, etc.) to play chess on onchainchess.com as first-class players. Agents can't use the browser UI, so we're building an MCP (Model Context Protocol) server that exposes 8 tools mapping to our game server's REST API + WebSocket. The agent calls tools like `make_move` and `join_game` — the MCP server handles auth, HTTP requests, and WebSocket waiting internally.
+
+## Architecture
+
+```
+Agent (Claude/GPT)  ←──stdio──→  MCP Server (Node.js)  ←──HTTP/WS──→  Game Server (Railway)
+                                       │
+                                  ~/.onchainchess-bot
+                                  (persisted auth token)
+```
+
+## File Structure
+
+```
+mcp/
+  package.json        # Dependencies: @modelcontextprotocol/sdk, ws
+  index.js            # MCP server entry point — registers 8 tools
+  api-client.js       # HTTP + WebSocket client wrapping game server API
+  auth-store.js       # Token persistence to ~/.onchainchess-bot
+```
+
+## The 8 Tools
+
+### 1. `create_account(username)`
+- **Calls**: `POST /api/auth/signup` with `{ username }` (no auth header)
+- **Side effect**: Saves `{ username, token }` to `~/.onchainchess-bot`
+- **Returns**: Username confirmation
+- **Errors**: Username taken (409), invalid format (400), account already exists on disk
+
+### 2. `create_game(color)`
+- **Params**: `color` — "white", "black", or "random" (default "random")
+- **Calls**: `POST /api/rooms` with `{ color }` + auth header
+- **Returns**: `{ roomId, inviteCode, color }`
+
+### 3. `wait_for_opponent(room_id, timeout_seconds?)`
+- **Flow**: First `GET /api/rooms/:id` — if already `playing`, return immediately. Otherwise open WebSocket, wait for `join` event.
+- **Returns**: `{ opponent_username, opponent_color, status: "playing" }`
+- **Timeout**: Default 300s
+
+### 4. `join_game(invite_code)`
+- **Calls**: `POST /api/rooms/join` with `{ inviteCode }` + auth header
+- **Returns**: `{ roomId, color }`
+
+### 5. `get_board_state(room_id)`
+- **Calls**: `GET /api/rooms/:id` + auth header
+- **Returns**: `{ fen, currentTurn, myColor, legalMoves, moveHistory, status, result, white, black }`
+
+### 6. `make_move(room_id, move)`
+- **Params**: `move` in UCI format (e.g. "e2e4", "e7e8q")
+- **Calls**: `POST /api/rooms/:id/move` with `{ move }` + auth header
+- **Returns**: `{ ok, fen, currentTurn, legalMoves, moveHistory, gameOver, result, reason }`
+- **On illegal move**: Returns error with `legalMoves` array so agent can retry
+
+### 7. `wait_for_turn(room_id, timeout_seconds?)`
+- **Flow**: First `GET /api/rooms/:id` — if already agent's turn or game over, return immediately. Otherwise open WebSocket, wait for `move` or `gameOver` event.
+- **Returns**: `{ fen, currentTurn, legalMoves, moveHistory, gameOver, result, reason }`
+- **Timeout**: Default 300s
+
+### 8. `resign(room_id)`
+- **Calls**: `POST /api/rooms/:id/resign` + auth header **(NEW endpoint needed)**
+- **Returns**: `{ ok, result }`
+
+## Server-Side Change: Resign Endpoint
+
+Add `POST /api/rooms/:id/resign` to `server/routes/rooms.js`:
+- Validate room exists and status is `playing`
+- Verify `req.user.id` is white or black player
+- Determine result: resigner is white → "0-1", black → "1-0"
+- Update room via existing `updateRoomResult` prepared statement
+- Broadcast `gameOver` event with `{ result, reason: 'resignation' }`
+
+This is the **only** server-side change needed.
+
+## Auth Token Persistence (`auth-store.js`)
+
+File: `~/.onchainchess-bot`
+```json
+{ "username": "claude-bot", "token": "uuid-here" }
+```
+
+- `loadCredentials()` — reads file, returns `{ username, token }` or `null`
+- `saveCredentials(username, token)` — writes to file
+- Token is never exposed to the agent in tool responses
+
+Agents use `POST /api/auth/signup` (not passkey auth) since they can't do biometrics.
+
+## WebSocket Strategy for Wait Tools
+
+Ephemeral connections per wait call (not persistent):
+1. Open WS to `ws://<serverUrl>/api/rooms/:id/ws?token=xxx`
+2. Listen for target event(s) — `join` for wait_for_opponent, `move`/`gameOver` for wait_for_turn
+3. On match → resolve and close WS
+4. On timeout → reject and close WS
+
+Both wait tools do an HTTP pre-check first to avoid unnecessary WS connections (handles race where event already happened).
+
+## Server URL Configuration
+
+Environment variable `CHESS_SERVER_URL`, read at MCP server startup.
+- Default: `http://localhost:3001`
+- Production: `https://onchainchess-production.up.railway.app`
+
+For WebSocket, derive from HTTP URL: `http://` → `ws://`, `https://` → `wss://`
+
+## Installation
+
+```json
+// claude_desktop_config.json or .claude/settings.json
+{
+  "mcpServers": {
+    "onchainchess": {
+      "command": "node",
+      "args": ["/path/to/mcp/index.js"],
+      "env": {
+        "CHESS_SERVER_URL": "https://onchainchess-production.up.railway.app"
+      }
+    }
+  }
+}
+```
+
+Setup: `cd mcp && npm install`
+
+## Implementation Steps
+
+### Step 1: Add resign endpoint to server
+- File: `server/routes/rooms.js`
+- Add `POST /:id/resign` after the move endpoint (~line 434)
+- Uses existing `updateRoomResult`, `broadcast`, `findRoomById`
+
+### Step 2: Create `mcp/package.json`
+- Dependencies: `@modelcontextprotocol/sdk`, `ws`
+- `"type": "module"` for ESM
+
+### Step 3: Create `mcp/auth-store.js`
+- `loadCredentials()` / `saveCredentials()` functions
+- File path: `~/.onchainchess-bot`
+
+### Step 4: Create `mcp/api-client.js`
+- `ChessApiClient` class with methods: `signup`, `createRoom`, `joinRoom`, `getRoomState`, `submitMove`, `resign`, `waitForEvent`
+- HTTP via `fetch` (Node 18+ built-in)
+- WebSocket via `ws` package
+- `waitForEvent(roomId, targetEvents, timeoutMs)` — opens WS, blocks until event, closes
+
+### Step 5: Create `mcp/index.js`
+- MCP server using `McpServer` + `StdioServerTransport`
+- Register all 8 tools with Zod schemas
+- Each tool: load credentials → call api-client → return structured response
+- Error handling: `isError: true` with helpful messages
+
+### Step 6: Write architecture.md and todo.md under mcp/
+
+## Files Modified
+- `server/routes/rooms.js` — add resign endpoint
+- `mcp/package.json` (new)
+- `mcp/index.js` (new)
+- `mcp/api-client.js` (new)
+- `mcp/auth-store.js` (new)
+- `mcp/architecture.md` (new)
+- `mcp/todo.md` (new)
+
+## Verification
+1. `cd mcp && npm install` succeeds
+2. Start game server locally: `cd server && node index.js`
+3. Test MCP server manually: `echo '{"method":"tools/list"}' | node mcp/index.js`
+4. Configure in Claude Desktop/Code, test full flow:
+   - "Create an account called test-bot"
+   - "Create a game as white"
+   - Share invite code, join from browser
+   - Agent plays moves via `make_move`, waits via `wait_for_turn`
+   - Game completes or agent resigns
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/gold/.claude/projects/-Users-gold-VS-code-claude-chess-UI/073d6337-ece2-42d6-926d-b0ab4e7b69e4.jsonl
+
+---
+
+this mean we have our mcp server?
+
+---
+
+so with what we've implemented, if i install or add that to claude code's settings we would be able to play chess together?
+
+---
+
+what do you mean by you won't play like stockfish? what is the difference?
+
+---
+
+that's fine! let's deploy the server change. i'll commit and push the updates to github, which should auto redeploy railway and vercel.
+
+we will also need to create a new git branch to store our mcp updates because i'd like to treat this as something separate we can work on without affecting the whole game
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+no let me do it. direct me
+
+---
+
+'server' is not a commit and a branch 'mcp' cannot be created from it
+
+---
+
+is the git add mcp/ still correct then?
+
+---
+
+alright that's done!
+
+---
+
+yep
+
+---
+
+when i start a new chat, how do i activate it? do i just say "lets play" or is there a special command that is needed?
+
+---
+
+okay this is working well! what we need to optimise is make sure that the agent doesn't ask for approval for every move!
+
+can we provide context via our mcp server, that prompts the agent to ask the user to allow it play without asking for permission regarding this game. 
+
+right now every tool use by claude has to be approved by me (the user). so we need to add pre-context that let's the agent know to ask for autonomous control over the mcp tools during that session.
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+if i were to install this mcp in claude's desktop app, and i asked you via the chat interface to play chess with me... would you need to ask for permission for every move?
+
+---
+
+another problem is claude code seems to be broadcasting every of its move as if  we we're having a normal chat. this slows down the game play tremendously. it introduces its own latency issue.
+
+is there anyway around this? to make sure that when we start playing, it doesn't spit out a response until the game is concluded. each game should be like every other thinking, planning or research session where it uses a lot of tools and spits out the final response.

@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "3587fefeea5e",
+  "session_id": "a5997fc1-81d5-4710-a90b-65719d5a3cb0",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-24T14:08:14.60846Z",
+  "branch": "mcp-server",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "mcp/index.js",
+    "server/routes/rooms.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f9cbd8cd5bf4",
+  "token_usage": {
+    "input_tokens": 65,
+    "cache_creation_tokens": 72830,
+    "cache_read_tokens": 1177838,
+    "output_tokens": 11735,
+    "api_call_count": 35
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-24T14:08:14.474353Z",
+    "agent_lines": 25,
+    "human_added": 4,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 30,
+    "agent_percentage": 83.33333333333334
+  },
+  "transcript_path": ".claude/projects/-Users-gold-VS-code-claude-chess-UI/a5997fc1-81d5-4710-a90b-65719d5a3cb0.jsonl"
+}
