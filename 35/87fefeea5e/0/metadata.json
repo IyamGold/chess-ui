@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "3587fefeea5e",
+  "session_id": "073d6337-ece2-42d6-926d-b0ab4e7b69e4",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-24T14:08:09.562813Z",
+  "branch": "mcp-server",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/components/GameList.jsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2dce316266f4",
+  "token_usage": {
+    "input_tokens": 261,
+    "cache_creation_tokens": 1399188,
+    "cache_read_tokens": 12785410,
+    "output_tokens": 61293,
+    "api_call_count": 154
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-24T14:08:08.902906Z",
+    "agent_lines": 2,
+    "human_added": 29,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 31,
+    "agent_percentage": 6.451612903225806
+  },
+  "transcript_path": ".claude/projects/-Users-gold-VS-code-claude-chess-UI/073d6337-ece2-42d6-926d-b0ab4e7b69e4.jsonl"
+}
