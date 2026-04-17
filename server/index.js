@@ -10,6 +10,7 @@ const { setupWebSocket } = require('./ws');
 const { createStockfishPlayer } = require('./chess/stockfishPlayer');
 
 const PORT = process.env.PORT || 3001;
+const PASSKEY_SERVER_URL = process.env.PASSKEY_SERVER_URL || 'http://localhost:3000';
 
 async function main() {
   // Initialize database
@@ -73,7 +74,7 @@ async function main() {
   const auth = authMiddleware(db);
 
   // Mount routes
-  app.use('/api/auth', signupLimiter, createAuthRouter(db));
+  app.use('/api/auth', signupLimiter, createAuthRouter(db, { passkeyServerUrl: PASSKEY_SERVER_URL }));
 
   const roomsRouter = createRoomsRouter(db, {
     broadcast,

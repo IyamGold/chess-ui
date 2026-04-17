@@ -70,7 +70,7 @@ export function useOnlineGame({ serverToken, roomId }) {
   useEffect(() => {
     if (!serverToken || !roomId) return;
 
-    const ws = new WebSocket(`${GAME_WS_URL}/api/rooms/${roomId}/ws?token=${serverToken}`);
+    const ws = new WebSocket(`${GAME_WS_URL}/api/rooms/${roomId}/ws`, [`token.${serverToken}`]);
     wsRef.current = ws;
 
     ws.onmessage = (event) => {

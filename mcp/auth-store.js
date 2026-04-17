@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, chmodSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
@@ -19,4 +19,5 @@ export function loadCredentials() {
 
 export function saveCredentials(username, token) {
   writeFileSync(CREDENTIALS_PATH, JSON.stringify({ username, token }, null, 2), 'utf-8');
+  chmodSync(CREDENTIALS_PATH, 0o600);
 }

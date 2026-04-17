@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { GAME_SERVER_URL } from '../config';
 const LS_TOKEN_KEY = 'server_auth_token';
 
-export function useServerAuth({ isAuthenticated, account, username }) {
+export function useServerAuth({ isAuthenticated, account, username, credentialId }) {
   const [serverToken, setServerToken] = useState(() => localStorage.getItem(LS_TOKEN_KEY));
   const [isConnected, setIsConnected] = useState(() => !!localStorage.getItem(LS_TOKEN_KEY));
 
   // Bridge passkey auth to server token — also validates/re-bridges stale tokens
   useEffect(() => {
-    if (!isAuthenticated || !account || !username) {
+    if (!isAuthenticated || !account || !username || !credentialId) {
       setServerToken(null);
       setIsConnected(false);
       localStorage.removeItem(LS_TOKEN_KEY);
@@ -44,7 +44,7 @@ export function useServerAuth({ isAuthenticated, account, username }) {
         const resp = await fetch(`${GAME_SERVER_URL}/api/auth/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ passkeyAddress: account, username }),
+          body: JSON.stringify({ passkeyAddress: account, username, credentialId }),
         });
 
         if (!resp.ok) {
@@ -67,7 +67,7 @@ export function useServerAuth({ isAuthenticated, account, username }) {
 
     ensureValidToken();
     return () => { cancelled = true; };
-  }, [isAuthenticated, account, username]);
+  }, [isAuthenticated, account, username, credentialId]);
 
   const logout = useCallback(() => {
     localStorage.removeItem(LS_TOKEN_KEY);

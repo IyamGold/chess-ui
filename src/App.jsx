@@ -47,6 +47,7 @@ function App() {
     isAuthenticated: passkey.isAuthenticated,
     account: passkey.account,
     username: passkey.username,
+    credentialId: passkey.credentialId,
   });
   const { publishGame: passkeyPublish } = usePasskeyPublish({
     account: passkey.account,

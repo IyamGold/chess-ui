@@ -15,7 +15,8 @@ function createDb() {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
-      token TEXT UNIQUE NOT NULL,
+      token_hash TEXT UNIQUE,
+      token_expires_at TEXT,
       passkey_address TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
@@ -46,7 +47,7 @@ function createDb() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_rooms_invite_code ON rooms(invite_code);
-    CREATE INDEX IF NOT EXISTS idx_users_token ON users(token);
+    CREATE INDEX IF NOT EXISTS idx_users_token_hash ON users(token_hash);
   `);
 
   return db;

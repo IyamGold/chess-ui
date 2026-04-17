@@ -54,7 +54,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
 
   // Stockfish system user
   const findStockfishUser = db.prepare("SELECT id FROM users WHERE username = '__stockfish__'");
-  const insertStockfishUser = db.prepare("INSERT OR IGNORE INTO users (username, token) VALUES ('__stockfish__', '__stockfish_token__')");
+  const insertStockfishUser = db.prepare("INSERT OR IGNORE INTO users (username) VALUES ('__stockfish__')");
 
   function getOrCreateStockfishUser() {
     let user = findStockfishUser.get();

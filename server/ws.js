@@ -1,5 +1,10 @@
 const { WebSocketServer } = require('ws');
 const url = require('url');
+const crypto = require('crypto');
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 function setupWebSocket(server, db) {
   const wss = new WebSocketServer({ noServer: true });
@@ -7,7 +12,9 @@ function setupWebSocket(server, db) {
   // Track clients per room: Map<roomId, Set<{ ws, userId, username, role }>>
   const rooms = new Map();
 
-  const findUserByToken = db.prepare('SELECT id, username FROM users WHERE token = ?');
+  const findUserByTokenHash = db.prepare(
+    'SELECT id, username, token_expires_at FROM users WHERE token_hash = ?'
+  );
   const findRoom = db.prepare('SELECT * FROM rooms WHERE id = ?');
 
   // Handle HTTP upgrade
@@ -23,7 +30,11 @@ function setupWebSocket(server, db) {
     }
 
     const roomId = parseInt(match[1]);
-    const token = parsed.query.token;
+
+    // Extract token from Sec-WebSocket-Protocol header (preferred) or query param (fallback)
+    const protocols = (request.headers['sec-websocket-protocol'] || '').split(',').map(s => s.trim());
+    const tokenFromProtocol = protocols.find(p => p.startsWith('token.'));
+    const token = tokenFromProtocol ? tokenFromProtocol.slice(6) : parsed.query.token;
 
     if (!token) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
@@ -31,11 +42,22 @@ function setupWebSocket(server, db) {
       return;
     }
 
-    const user = findUserByToken.get(token);
+    const tokenHash = hashToken(token);
+    const user = findUserByTokenHash.get(tokenHash);
     if (!user) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
       return;
+    }
+
+    // Check token expiry
+    if (user.token_expires_at) {
+      const expiresAt = new Date(user.token_expires_at + 'Z');
+      if (expiresAt <= new Date()) {
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
     }
 
     const room = findRoom.get(roomId);
@@ -51,6 +73,8 @@ function setupWebSocket(server, db) {
       role = 'player';
     }
 
+    // Accept the connection with the token protocol so the client handshake succeeds
+    const acceptProtocol = tokenFromProtocol || undefined;
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, { roomId, user, role });
     });

@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { ChessApiClient, ApiError } from './api-client.js';
+import { ChessApiClient, ApiError, getConnection, closeConnection, closeAllConnections } from './api-client.js';
 import { loadCredentials, saveCredentials } from './auth-store.js';
 
 const serverUrl = process.env.CHESS_SERVER_URL || 'http://localhost:3001';
@@ -18,6 +18,30 @@ function requireAuth() {
     throw new Error('No account found. Use create_account first.');
   }
   return creds;
+}
+
+// Wrap a tool handler to auto-refresh on token expiry and retry once
+function withAutoRefresh(handler) {
+  return async (args) => {
+    try {
+      return await handler(args);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401 && err.message === 'token_expired') {
+        // Attempt token refresh
+        const creds = loadCredentials();
+        if (!creds) throw err;
+        try {
+          const result = await client.refresh(creds.token);
+          saveCredentials(result.username, result.token);
+          // Retry the original handler with refreshed credentials
+          return await handler(args);
+        } catch (refreshErr) {
+          throw new Error('Token expired and refresh failed. Use create_account to re-register.');
+        }
+      }
+      throw err;
+    }
+  };
 }
 
 function errorResponse(err) {
@@ -62,9 +86,13 @@ server.tool(
   { color: z.enum(['white', 'black', 'random']).default('random').describe('Which color to play as') },
   async ({ color }) => {
     try {
-      const { token } = requireAuth();
-      const room = await client.createRoom(token, color);
-      return ok({ roomId: room.roomId, inviteCode: room.inviteCode, color: room.color });
+      return await withAutoRefresh(async () => {
+        const { token } = requireAuth();
+        const room = await client.createRoom(token, color);
+        const conn = getConnection(room.roomId, client.wsUrl, token);
+        await conn.ready();
+        return ok({ roomId: room.roomId, inviteCode: room.inviteCode, color: room.color });
+      })();
     } catch (err) {
       return errorResponse(err);
     }
@@ -81,24 +109,26 @@ server.tool(
   },
   async ({ room_id, timeout_seconds }) => {
     try {
-      const { token } = requireAuth();
+      return await withAutoRefresh(async () => {
+        const { token } = requireAuth();
+        const conn = getConnection(room_id, client.wsUrl, token);
+        await conn.ready();
 
-      // Pre-check: maybe opponent already joined
-      const state = await client.getRoomState(token, room_id);
-      if (state.status === 'playing') {
+        const state = await client.getRoomState(token, room_id);
+        if (state.status === 'playing') {
+          return ok({
+            status: 'playing',
+            opponent_username: state.white?.username === state.myUsername ? state.black?.username : state.white?.username,
+          });
+        }
+
+        const msg = await conn.waitForEvent(['join'], timeout_seconds * 1000);
         return ok({
           status: 'playing',
-          opponent_username: state.white?.username === state.myUsername ? state.black?.username : state.white?.username,
+          opponent_username: msg.data?.username,
+          opponent_color: msg.data?.color,
         });
-      }
-
-      // Wait via WebSocket
-      const msg = await client.waitForEvent(token, room_id, ['join'], timeout_seconds * 1000);
-      return ok({
-        status: 'playing',
-        opponent_username: msg.data?.username,
-        opponent_color: msg.data?.color,
-      });
+      })();
     } catch (err) {
       return errorResponse(err);
     }
@@ -112,9 +142,13 @@ server.tool(
   { invite_code: z.string().describe('The invite code shared by the game creator') },
   async ({ invite_code }) => {
     try {
-      const { token } = requireAuth();
-      const result = await client.joinRoom(token, invite_code);
-      return ok({ roomId: result.roomId, color: result.color });
+      return await withAutoRefresh(async () => {
+        const { token } = requireAuth();
+        const result = await client.joinRoom(token, invite_code);
+        const conn = getConnection(result.roomId, client.wsUrl, token);
+        await conn.ready();
+        return ok({ roomId: result.roomId, color: result.color });
+      })();
     } catch (err) {
       return errorResponse(err);
     }
@@ -128,9 +162,11 @@ server.tool(
   { room_id: z.number().describe('Room ID') },
   async ({ room_id }) => {
     try {
-      const { token } = requireAuth();
-      const state = await client.getRoomState(token, room_id);
-      return ok(state);
+      return await withAutoRefresh(async () => {
+        const { token } = requireAuth();
+        const state = await client.getRoomState(token, room_id);
+        return ok(state);
+      })();
     } catch (err) {
       return errorResponse(err);
     }
@@ -147,9 +183,11 @@ server.tool(
   },
   async ({ room_id, move }) => {
     try {
-      const { token } = requireAuth();
-      const result = await client.submitMove(token, room_id, move);
-      return ok(result);
+      return await withAutoRefresh(async () => {
+        const { token } = requireAuth();
+        const result = await client.submitMove(token, room_id, move);
+        return ok(result);
+      })();
     } catch (err) {
       return errorResponse(err);
     }
@@ -166,24 +204,30 @@ server.tool(
   },
   async ({ room_id, timeout_seconds }) => {
     try {
-      const { token } = requireAuth();
+      return await withAutoRefresh(async () => {
+        const { token } = requireAuth();
+        const conn = getConnection(room_id, client.wsUrl, token);
+        await conn.ready();
 
-      // Pre-check: maybe it's already our turn or game is over
-      const state = await client.getRoomState(token, room_id);
-      if (state.status === 'finished' || state.currentTurn === state.myColor) {
-        return ok(state);
-      }
+        const state = await client.getRoomState(token, room_id);
+        if (state.status === 'finished') {
+          closeConnection(room_id);
+          return ok(state);
+        }
+        if (state.currentTurn === state.myColor) {
+          return ok(state);
+        }
 
-      // Wait via WebSocket for move or gameOver
-      const msg = await client.waitForEvent(token, room_id, ['move', 'gameOver'], timeout_seconds * 1000);
+        const msg = await conn.waitForEvent(['move', 'gameOver'], timeout_seconds * 1000);
 
-      if (msg.event === 'gameOver') {
-        return ok({ gameOver: true, result: msg.data?.result, reason: msg.data?.reason });
-      }
+        if (msg.event === 'gameOver') {
+          closeConnection(room_id);
+          return ok({ gameOver: true, result: msg.data?.result, reason: msg.data?.reason });
+        }
 
-      // After receiving a move event, fetch full state for consistency
-      const updated = await client.getRoomState(token, room_id);
-      return ok(updated);
+        const updated = await client.getRoomState(token, room_id);
+        return ok(updated);
+      })();
     } catch (err) {
       return errorResponse(err);
     }
@@ -197,9 +241,12 @@ server.tool(
   { room_id: z.number().describe('Room ID') },
   async ({ room_id }) => {
     try {
-      const { token } = requireAuth();
-      const result = await client.resign(token, room_id);
-      return ok(result);
+      return await withAutoRefresh(async () => {
+        const { token } = requireAuth();
+        const result = await client.resign(token, room_id);
+        closeConnection(room_id);
+        return ok(result);
+      })();
     } catch (err) {
       return errorResponse(err);
     }
@@ -218,7 +265,7 @@ server.prompt(
         text: `You are playing chess on onchainchess.com via MCP tools. Follow these rules strictly:
 
 1. SILENT PLAY: Do NOT output any text between moves. No commentary, no analysis, no narration. Just call tools silently.
-2. GAME LOOP: After setup (create/join game), repeat: wait_for_turn → get_board_state → make_move. Do not pause or speak between these calls.
+2. GAME LOOP: After setup (create/join game), repeat: wait_for_turn → make_move. wait_for_turn already returns the full board state (FEN, legal moves, status) — do NOT call get_board_state separately. Do not pause or speak between these calls.
 3. ONLY SPEAK when: the game ends (report result), an unrecoverable error occurs, or you need info from the user (like an invite code).
 4. Move selection: Pick the best move from legalMoves. Don't explain your reasoning.
 5. If a move is rejected, silently retry with a legal move.
@@ -228,6 +275,10 @@ Start by asking the user how they want to set up the game, then go silent until 
     }]
   })
 );
+
+// Cleanup persistent connections on exit
+process.on('SIGINT', () => { closeAllConnections(); process.exit(0); });
+process.on('SIGTERM', () => { closeAllConnections(); process.exit(0); });
 
 // Start
 const transport = new StdioServerTransport();
