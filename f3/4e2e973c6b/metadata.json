@@ -3,8 +3,9 @@
   "checkpoint_id": "f34e2e973c6b",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 5,
+  "checkpoints_count": 7,
   "files_touched": [
+    ".claude/settings.local.json",
     "mcp/api-client.js",
     "mcp/auth-store.js",
     "mcp/index.js",
@@ -15,6 +16,7 @@
     "server/index.js",
     "server/middleware/auth.js",
     "server/routes/auth.js",
+    "server/routes/rooms.js",
     "server/ws.js",
     "src/App.jsx",
     "src/components/WaitingRoom.jsx",
@@ -28,13 +30,20 @@
       "context": "/f3/4e2e973c6b/0/context.md",
       "content_hash": "/f3/4e2e973c6b/0/content_hash.txt",
       "prompt": "/f3/4e2e973c6b/0/prompt.txt"
+    },
+    {
+      "metadata": "/f3/4e2e973c6b/1/metadata.json",
+      "transcript": "/f3/4e2e973c6b/1/full.jsonl",
+      "context": "/f3/4e2e973c6b/1/context.md",
+      "content_hash": "/f3/4e2e973c6b/1/content_hash.txt",
+      "prompt": "/f3/4e2e973c6b/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 157,
-    "cache_creation_tokens": 114121,
-    "cache_read_tokens": 3736421,
-    "output_tokens": 23348,
-    "api_call_count": 69
+    "input_tokens": 163,
+    "cache_creation_tokens": 125026,
+    "cache_read_tokens": 3761910,
+    "output_tokens": 23984,
+    "api_call_count": 71
   }
 }
