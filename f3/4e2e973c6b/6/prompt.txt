@@ -1,0 +1,9 @@
+Use the play_chess prompt, then let's play chess
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+can we continue
