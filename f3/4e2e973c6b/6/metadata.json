@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f34e2e973c6b",
+  "session_id": "d1c39df4-c836-4936-89c0-8ecee1fd1ebe",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-17T16:29:48.42473Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "server/ws.js",
+    "mcp/api-client.js",
+    "server/middleware/auth.js",
+    "src/components/WaitingRoom.jsx",
+    "src/hooks/useServerAuth.js",
+    "mcp/index.js",
+    "server/chess.db-wal",
+    "server/db.js",
+    "src/hooks/useOnlineGame.js",
+    "mcp/auth-store.js",
+    "server/routes/auth.js",
+    "server/routes/rooms.js",
+    "src/App.jsx",
+    ".claude/settings.local.json",
+    "server/chess.db",
+    "server/chess.db-shm",
+    "server/index.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f476b38fc7e2",
+  "transcript_identifier_at_start": "b27a0179-b987-4424-b65f-198d2dbc18c5",
+  "token_usage": {
+    "input_tokens": 134,
+    "cache_creation_tokens": 73426,
+    "cache_read_tokens": 4178321,
+    "output_tokens": 10866,
+    "api_call_count": 92
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-17T16:29:48.390421Z",
+    "agent_lines": 441,
+    "human_added": 2,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 444,
+    "agent_percentage": 99.32432432432432
+  },
+  "transcript_path": ".claude/projects/-Users-gold-VS-code-claude-chess-UI/d1c39df4-c836-4936-89c0-8ecee1fd1ebe.jsonl"
+}
