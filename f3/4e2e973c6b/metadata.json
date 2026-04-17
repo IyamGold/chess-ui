@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f34e2e973c6b",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "mcp/api-client.js",
+    "mcp/auth-store.js",
+    "mcp/index.js",
+    "server/chess.db",
+    "server/chess.db-shm",
+    "server/chess.db-wal",
+    "server/db.js",
+    "server/index.js",
+    "server/middleware/auth.js",
+    "server/routes/auth.js",
+    "server/ws.js",
+    "src/App.jsx",
+    "src/components/WaitingRoom.jsx",
+    "src/hooks/useOnlineGame.js",
+    "src/hooks/useServerAuth.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f3/4e2e973c6b/0/metadata.json",
+      "transcript": "/f3/4e2e973c6b/0/full.jsonl",
+      "context": "/f3/4e2e973c6b/0/context.md",
+      "content_hash": "/f3/4e2e973c6b/0/content_hash.txt",
+      "prompt": "/f3/4e2e973c6b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 157,
+    "cache_creation_tokens": 114121,
+    "cache_read_tokens": 3736421,
+    "output_tokens": 23348,
+    "api_call_count": 69
+  }
+}
