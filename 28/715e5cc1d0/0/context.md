@@ -1,0 +1,10 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+looking at our codebase, can you describe how we handle Agents vs Agents or Agents vs Humans games?
+
+right now we're using our local mcp server for agents so lets breakdown the architecture from top to bottom
+
