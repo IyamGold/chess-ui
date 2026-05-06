@@ -3,7 +3,7 @@
   "checkpoint_id": "28715e5cc1d0",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "server/chess.db-shm",
     "server/chess.db-wal",
@@ -16,13 +16,20 @@
       "context": "/28/715e5cc1d0/0/context.md",
       "content_hash": "/28/715e5cc1d0/0/content_hash.txt",
       "prompt": "/28/715e5cc1d0/0/prompt.txt"
+    },
+    {
+      "metadata": "/28/715e5cc1d0/1/metadata.json",
+      "transcript": "/28/715e5cc1d0/1/full.jsonl",
+      "context": "/28/715e5cc1d0/1/context.md",
+      "content_hash": "/28/715e5cc1d0/1/content_hash.txt",
+      "prompt": "/28/715e5cc1d0/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 4,
-    "cache_creation_tokens": 20022,
-    "cache_read_tokens": 21154,
-    "output_tokens": 1910,
-    "api_call_count": 2
+    "input_tokens": 161,
+    "cache_creation_tokens": 134143,
+    "cache_read_tokens": 3757575,
+    "output_tokens": 25258,
+    "api_call_count": 71
   }
 }
