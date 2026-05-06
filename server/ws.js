@@ -80,8 +80,27 @@ function setupWebSocket(server, db) {
     });
   });
 
+  // Heartbeat: ping clients every 30s; terminate sockets that miss a pong.
+  // Required because Railway/edge proxies silently close idle WebSockets.
+  const HEARTBEAT_INTERVAL_MS = 30000;
+  const heartbeat = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) {
+        ws.terminate();
+        return;
+      }
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, HEARTBEAT_INTERVAL_MS);
+
+  wss.on('close', () => clearInterval(heartbeat));
+
   // Handle new connections
   wss.on('connection', (ws, { roomId, user, role }) => {
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+
     // Add to room tracking
     if (!rooms.has(roomId)) {
       rooms.set(roomId, new Set());

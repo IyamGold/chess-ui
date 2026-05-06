@@ -22,6 +22,10 @@ async function main() {
   // Create Express app
   const app = express();
 
+  // Trust the first reverse proxy (Railway, etc.) so X-Forwarded-For is honored
+  // and express-rate-limit can identify clients by real IP.
+  app.set('trust proxy', 1);
+
   // Middleware
   app.use(express.json());
   const corsOrigins = process.env.CORS_ORIGINS

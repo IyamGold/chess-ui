@@ -66,36 +66,34 @@ export function useOnlineGame({ serverToken, roomId }) {
     fetchRoom();
   }, [fetchRoom]);
 
-  // WebSocket connection
+  // WebSocket connection — with auto-reconnect (backoff) and resync on reopen.
   useEffect(() => {
     if (!serverToken || !roomId) return;
 
-    const ws = new WebSocket(`${GAME_WS_URL}/api/rooms/${roomId}/ws`, [`token.${serverToken}`]);
-    wsRef.current = ws;
+    let unmounted = false;
+    let attempt = 0;
+    let reconnectTimer = null;
+    let firstConnect = true;
 
-    ws.onmessage = (event) => {
+    function handleMessage(event) {
       const msg = JSON.parse(event.data);
 
       switch (msg.event) {
         case 'joined':
-          // Our own connection confirmed
           break;
 
         case 'join':
-          // Another player joined - game is starting
           setStatus('playing');
           fetchRoom();
           break;
 
         case 'move': {
-          // Play sound before updating state — check capture against current board
           if (msg.data.move) {
             const uci = msg.data.move;
             const cols = 'abcdefgh';
             const toCol = cols.indexOf(uci[2]);
             const toRow = 8 - parseInt(uci[3]);
             const toIndex = toRow * 8 + toCol;
-            // Use previous board state (before this move) to detect capture
             setBoard(prev => {
               const wasCapture = prev && prev[toIndex] !== 0;
               if (wasCapture) { playCaptureSound(); } else { playMoveSound(); }
@@ -118,22 +116,69 @@ export function useOnlineGame({ serverToken, roomId }) {
 
         case 'playerConnected':
         case 'playerDisconnected':
-          // Could show connection indicators later
           break;
       }
-    };
+    }
 
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-    };
+    function connect() {
+      if (unmounted) return;
+      reconnectTimer = null;
 
-    ws.onclose = () => {
-      wsRef.current = null;
-    };
+      const ws = new WebSocket(`${GAME_WS_URL}/api/rooms/${roomId}/ws`, [`token.${serverToken}`]);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        attempt = 0;
+        // Resync after a reconnect — initial mount already fetches via the fetchRoom effect.
+        if (!firstConnect) fetchRoom();
+        firstConnect = false;
+      };
+
+      ws.onmessage = handleMessage;
+
+      ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+      };
+
+      ws.onclose = () => {
+        if (wsRef.current === ws) wsRef.current = null;
+        if (unmounted) return;
+        const delay = Math.min(1000 * 2 ** attempt, 10000);
+        attempt += 1;
+        reconnectTimer = setTimeout(connect, delay);
+      };
+    }
+
+    function forceReconnect() {
+      if (unmounted) return;
+      const ws = wsRef.current;
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      attempt = 0;
+      connect();
+    }
+
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') forceReconnect();
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', forceReconnect);
+
+    connect();
 
     return () => {
-      ws.close();
-      wsRef.current = null;
+      unmounted = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', forceReconnect);
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
   }, [serverToken, roomId, fetchRoom]);
 
