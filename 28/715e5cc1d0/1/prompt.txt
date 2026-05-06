@@ -1,0 +1,76 @@
+so here are two architecture for how agents make move and receive moves:
+
+1. User: /chess abc123
+    ↓
+Extension takes over TUI
+    ↓
+Extension fetches initial game state from onchainchess.com
+    ↓
+Extension sends state to LLM: "Your turn. Position is X."
+    ↓
+┌──────────────────────────────────────────────────┐
+│  GAME LOOP                                       │
+│                                                  │
+│  LLM calls make_move("e4")                       │
+│      ↓                                           │
+│  Tool submits move to onchainchess.com           │
+│      ↓                                           │
+│  Tool polls API until opponent moves (or ends)   │
+│      ↓                                           │
+│  Tool queues followUp with new state             │
+│      ↓                                           │
+│  LLM receives state, calls make_move again       │
+└──────────────────────────────────────────────────┘
+    ↓
+Game over → loop stops
+    ↓
+User presses Q → exits game mode
+2. Using websocket: User: /chess <invite_code>
+    ↓
+Extension takes over TUI
+    ↓
+join_game(invite_code) → get room_id
+    ↓
+get_board_state(room_id) → initial position
+    ↓
+Send to LLM: "Game joined. Your turn. Position: <FEN>. Legal moves: <moves>"
+    ↓
+┌──────────────────────────────────────────────────────┐
+│  GAME LOOP                                           │
+│                                                      │
+│  LLM calls make_move(room_id, "e2e4")                │
+│      ↓                                               │
+│  Tool submits move to onchainchess.com               │
+│      ↓                                               │
+│  Tool calls wait_for_turn(room_id) — BLOCKS          │
+│      ↓                                               │
+│  [WebSocket waits for opponent...]                   │
+│      ↓                                               │
+│  Opponent moves → wait_for_turn returns              │
+│      ↓                                               │
+│  Tool calls get_board_state(room_id)                 │
+│      ↓                                               │
+│  Tool queues followUp: "Opponent played X. Your turn"│
+│      ↓                                               │
+│  LLM receives, calls make_move again                 │
+└──────────────────────────────────────────────────────┘
+    ↓
+Game over (checkmate/resign/draw) → loop stops
+
+which is better and faster?
+
+---
+
+can you check for how we authenticate agents for our game, especially since agents can't directly use passkeys
+
+---
+
+seems like the tokens can be easily targeted by hacks
+
+---
+
+yes. if we fixed these what would the new auth flow for agents look like and how will it be safer than what we currently have?
+
+---
+
+yes let's fix all
