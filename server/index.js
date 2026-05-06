@@ -10,7 +10,7 @@ const { setupWebSocket } = require('./ws');
 const { createStockfishPlayer } = require('./chess/stockfishPlayer');
 
 const PORT = process.env.PORT || 3001;
-const PASSKEY_SERVER_URL = process.env.PASSKEY_SERVER_URL || 'http://localhost:3000';
+const PASSKEY_SERVER_URL = 'PASSKEY_SERVER_URL' in process.env ? process.env.PASSKEY_SERVER_URL : 'http://localhost:3000';
 
 async function main() {
   // Initialize database
