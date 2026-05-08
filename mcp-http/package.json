@@ -1,0 +1,20 @@
+{
+  "name": "onchainchess-mcp-http",
+  "version": "1.0.0",
+  "description": "Remote OAuth-protected MCP server for onchainchess. Lets Claude/ChatGPT play chess as the user's agent.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "better-sqlite3": "^11.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0",
+    "zod": "^3.24.4"
+  }
+}

@@ -1,0 +1,4 @@
+# Local SQLite DB lives here in dev; in prod it's on a Railway volume at /data.
+mcp.db
+mcp.db-shm
+mcp.db-wal
