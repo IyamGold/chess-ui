@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 
 import './App.css';
 import Chessboard from './Chessboard';
 import GameList from './components/GameList';
-import AuthGate from './components/AuthGate';
 import GameSetup from './components/GameSetup';
 import JoinGame from './components/JoinGame';
 import WaitingRoom from './components/WaitingRoom';
@@ -33,6 +33,7 @@ function loadOnlineSession() {
 }
 
 function App() {
+  const location = useLocation();
   const saved = loadOnlineSession();
   const [view, setView] = useState(saved?.view || 'list');
   const [activeGame, setActiveGame] = useState(null);
@@ -182,9 +183,10 @@ function App() {
     setView('list');
   };
 
-  // Unauthenticated: show auth gate only
+  // Unauthenticated: route to /login, preserving where they tried to go.
   if (!passkey.isAuthenticated) {
-    return <AuthGate onSignup={passkey.signup} onLogin={passkey.login} />;
+    const returnTo = location.pathname + location.search;
+    return <Navigate to={`/login?return_to=${encodeURIComponent(returnTo)}`} replace />;
   }
 
   return (
