@@ -1,4 +1,4 @@
-.mcp-consent {
+.auth-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -7,7 +7,7 @@
   padding: 1.5rem;
 }
 
-.mcp-consent-card {
+.auth-card {
   background: #1a1a1c;
   border: 1px solid #2a2a2e;
   border-radius: 12px;
@@ -18,37 +18,37 @@
   font-family: system-ui, sans-serif;
 }
 
-.mcp-consent-title {
+.auth-title {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0 0 1rem;
 }
 
-.mcp-consent-msg {
+.auth-msg {
   font-size: 1rem;
   line-height: 1.5;
   margin: 0 0 0.75rem;
 }
 
-.mcp-consent-sub {
+.auth-sub {
   font-size: 0.85rem;
   color: #9a9a9e;
   margin: 0 0 1.25rem;
 }
 
-.mcp-consent-status {
+.auth-status {
   font-size: 0.95rem;
   color: #b8b8bc;
   margin: 1rem 0;
 }
 
-.mcp-consent-error {
+.auth-error {
   color: #ff7a7a;
   font-size: 0.95rem;
   margin: 0.75rem 0;
 }
 
-.mcp-consent-btn {
+.auth-btn {
   display: block;
   width: 100%;
   padding: 0.75rem 1rem;
@@ -62,28 +62,28 @@
   transition: background 120ms ease;
 }
 
-.mcp-consent-btn:hover {
+.auth-btn:hover {
   background: #2c2c30;
 }
 
-.mcp-consent-btn-primary {
+.auth-btn-primary {
   background: #4a7cff;
   border-color: #4a7cff;
   color: #fff;
   font-weight: 500;
 }
 
-.mcp-consent-btn-primary:hover {
+.auth-btn-primary:hover {
   background: #5a8aff;
 }
 
-.mcp-consent-form {
+.auth-form {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.mcp-consent-input {
+.auth-input {
   padding: 0.65rem 0.85rem;
   font-size: 1rem;
   border-radius: 8px;
@@ -92,7 +92,15 @@
   color: #ececec;
 }
 
-.mcp-consent-input:focus {
+.auth-input:focus {
   outline: none;
   border-color: #4a7cff;
+}
+
+.auth-card a {
+  color: #4a7cff;
+  text-decoration: none;
+}
+.auth-card a:hover {
+  text-decoration: underline;
 }

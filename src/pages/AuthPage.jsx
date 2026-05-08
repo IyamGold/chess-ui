@@ -2,20 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { MCP_SERVER_URL } from '../config';
 import { usePasskeyAuth } from '../hooks/usePasskeyAuth';
-import './McpConsentPage.css';
+import './AuthPages.css';
 
-// Phases of the consent flow:
-//   loading     – fetching client info
-//   ready       – have client info, awaiting user action
-//   resolving   – calling passkey-resolve / has-agent
-//   need-signup – passkey-resolve 404; user must complete chess account first
-//   name-agent  – first-time auth for this client; ask for agent name
-//   submitting  – provision-agent / issue-consent / authorize-complete in flight
-//   redirecting – got redirect_url, about to leave
-//   error       – terminal error
-//   expired     – auth_request expired or missing
+// Phases:
+//   loading      – fetching client info
+//   resolving    – calling passkey-resolve / has-agent
+//   name-agent   – first-time auth for this client; ask for agent name
+//   submitting   – provision-agent / issue-consent / authorize/complete in flight
+//   error        – terminal error
+//   expired      – auth_request expired or missing
 
-export default function McpConsentPage() {
+export default function AuthPage() {
   const passkey = usePasskeyAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,10 +24,9 @@ export default function McpConsentPage() {
   const [humanUserId, setHumanUserId] = useState(null);
   const [agentUsername, setAgentUsername] = useState('');
 
-  // Avoid double-running the resolve flow under React strict mode.
   const resolveStartedRef = useRef(false);
 
-  // Step 1: load OAuth params for this request_id.
+  // 1. Load OAuth params for this request_id.
   useEffect(() => {
     if (!requestId) {
       setPhase('expired');
@@ -53,7 +49,10 @@ export default function McpConsentPage() {
         }
         const data = await resp.json();
         setClient(data);
-        setPhase('ready');
+        // If user isn't signed in, we route them off this page entirely.
+        if (!passkey.isAuthenticated) {
+          navigate(`/signin-required?request_id=${encodeURIComponent(requestId)}`, { replace: true });
+        }
       } catch (err) {
         if (cancelled) return;
         setPhase('error');
@@ -61,15 +60,15 @@ export default function McpConsentPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [requestId]);
+  }, [requestId, passkey.isAuthenticated, navigate]);
 
-  // Step 2: when authenticated, kick off resolve → has-agent.
+  // 2. Once authenticated and client info loaded, kick off resolve → has-agent.
   useEffect(() => {
-    if (phase !== 'ready' || !passkey.isAuthenticated || resolveStartedRef.current) return;
+    if (!client || !passkey.isAuthenticated || resolveStartedRef.current) return;
     resolveStartedRef.current = true;
     runResolveAndHasAgent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, passkey.isAuthenticated]);
+  }, [client, passkey.isAuthenticated]);
 
   async function runResolveAndHasAgent() {
     setPhase('resolving');
@@ -83,7 +82,13 @@ export default function McpConsentPage() {
           credentialId: passkey.credentialId,
         }),
       });
-      if (resolveResp.status === 404) { setPhase('need-signup'); return; }
+      if (resolveResp.status === 404) {
+        // Edge case: passkey verified but no chess account row. Rare —
+        // shouldn't happen with persistent storage. Send them through
+        // sign-in flow to re-bridge the chess account.
+        navigate(`/signin-required?request_id=${encodeURIComponent(requestId)}`, { replace: true });
+        return;
+      }
       if (!resolveResp.ok) {
         const data = await resolveResp.json().catch(() => ({}));
         throw new Error(data.error || `passkey-resolve failed (${resolveResp.status})`);
@@ -91,7 +96,6 @@ export default function McpConsentPage() {
       const { user_id } = await resolveResp.json();
       setHumanUserId(user_id);
 
-      // Check whether this client × human already has an agent.
       const hasResp = await fetch(`${MCP_SERVER_URL}/authorize/has-agent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -103,8 +107,7 @@ export default function McpConsentPage() {
       }
       const { agent } = await hasResp.json();
       if (agent) {
-        // Re-auth: skip naming, finalize directly.
-        await finalize({ human_user_id: user_id, agent_user_id: agent.agent_user_id, agent_username: null });
+        await finalize({ human_user_id: user_id, agent_user_id: agent.agent_user_id });
       } else {
         setPhase('name-agent');
       }
@@ -117,7 +120,6 @@ export default function McpConsentPage() {
   async function finalize({ human_user_id, agent_user_id, agent_username }) {
     setPhase('submitting');
     try {
-      // Provision: rotate token (existing) or create (new).
       const provBody = { request_id: requestId, human_user_id };
       if (agent_user_id) provBody.agent_user_id = agent_user_id;
       else provBody.agent_username = agent_username;
@@ -132,7 +134,6 @@ export default function McpConsentPage() {
       }
       const provision = await provResp.json();
 
-      // Issue consent token (server-side hop, secret stays out of browser).
       const issueResp = await fetch(`${MCP_SERVER_URL}/authorize/issue-consent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -149,7 +150,6 @@ export default function McpConsentPage() {
       }
       const { consent_token } = await issueResp.json();
 
-      // Complete OAuth — server mints code, returns redirect_url.
       const completeResp = await fetch(`${MCP_SERVER_URL}/authorize/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -160,93 +160,55 @@ export default function McpConsentPage() {
         throw new Error(data.error || `Complete failed (${completeResp.status})`);
       }
       const { redirect_url } = await completeResp.json();
-      setPhase('redirecting');
-      window.location.assign(redirect_url);
+      navigate(`/authsuccessful?redirect_url=${encodeURIComponent(redirect_url)}`, { replace: true });
     } catch (err) {
       setPhase('error');
       setErrorMsg(err.message || 'Network error');
     }
   }
 
-  const handleSignIn = async () => {
-    try {
-      await passkey.login();
-      // The effect on `passkey.isAuthenticated` will trigger resolve.
-    } catch (err) {
-      setErrorMsg(err.message || 'Sign-in failed');
-    }
-  };
-
   const handleSubmitAgent = (e) => {
     e.preventDefault();
     const trimmed = agentUsername.trim();
     if (trimmed.length < 3) return;
-    finalize({ human_user_id: humanUserId, agent_user_id: null, agent_username: trimmed });
-  };
-
-  const goSignUp = () => {
-    const returnTo = location.pathname + location.search;
-    navigate(`/login?return_to=${encodeURIComponent(returnTo)}`);
+    finalize({ human_user_id: humanUserId, agent_username: trimmed });
   };
 
   return (
-    <div className="mcp-consent">
-      <div className="mcp-consent-card">
-        <h1 className="mcp-consent-title">Authorize agent</h1>
+    <div className="auth-page">
+      <div className="auth-card">
+        <h1 className="auth-title">Authorize agent</h1>
 
-        {phase === 'loading' && <p className="mcp-consent-status">Loading…</p>}
+        {phase === 'loading' && <p className="auth-status">Loading…</p>}
 
-        {phase === 'expired' && (
-          <>
-            <p className="mcp-consent-msg mcp-consent-error">{errorMsg}</p>
-          </>
-        )}
+        {phase === 'expired' && <p className="auth-error">{errorMsg}</p>}
 
         {phase === 'error' && (
           <>
-            <p className="mcp-consent-msg mcp-consent-error">{errorMsg || 'Something went wrong.'}</p>
-            <button className="mcp-consent-btn" onClick={() => window.location.reload()}>Try again</button>
+            <p className="auth-error">{errorMsg || 'Something went wrong.'}</p>
+            <button className="auth-btn" onClick={() => window.location.reload()}>Try again</button>
           </>
         )}
 
-        {client && phase === 'ready' && (
+        {phase === 'resolving' && client && (
           <>
-            <p className="mcp-consent-msg">
+            <p className="auth-msg">
               <strong>{client.client_name}</strong> wants to play chess on onchainchess as your agent.
             </p>
-            <p className="mcp-consent-sub">
-              Your agent gets its own username, rating, and game history — separate from yours.
-            </p>
-            {!passkey.isAuthenticated ? (
-              <button className="mcp-consent-btn mcp-consent-btn-primary" onClick={handleSignIn}>
-                Sign in with passkey
-              </button>
-            ) : (
-              <p className="mcp-consent-status">Verifying…</p>
-            )}
-            {errorMsg && <p className="mcp-consent-error">{errorMsg}</p>}
-          </>
-        )}
-
-        {phase === 'resolving' && <p className="mcp-consent-status">Verifying your account…</p>}
-
-        {phase === 'need-signup' && (
-          <>
-            <p className="mcp-consent-msg">This passkey isn't registered on onchainchess yet.</p>
-            <button className="mcp-consent-btn mcp-consent-btn-primary" onClick={goSignUp}>
-              Sign up at onchainchess →
-            </button>
-            <p className="mcp-consent-sub">After signup you'll come right back here.</p>
+            <p className="auth-status">Verifying your account…</p>
           </>
         )}
 
         {phase === 'name-agent' && client && (
-          <form className="mcp-consent-form" onSubmit={handleSubmitAgent}>
-            <p className="mcp-consent-msg">
+          <form className="auth-form" onSubmit={handleSubmitAgent}>
+            <p className="auth-msg">
               Pick a username for your <strong>{client.client_name}</strong> agent.
             </p>
+            <p className="auth-sub">
+              Your agent gets its own username, rating, and game history — separate from yours.
+            </p>
             <input
-              className="mcp-consent-input"
+              className="auth-input"
               type="text"
               placeholder="e.g. claude-chess"
               value={agentUsername}
@@ -257,15 +219,14 @@ export default function McpConsentPage() {
               minLength={3}
               required
             />
-            <p className="mcp-consent-sub">3–32 chars · letters, numbers, hyphens.</p>
-            <button type="submit" className="mcp-consent-btn mcp-consent-btn-primary">
+            <p className="auth-sub">3–32 chars · letters, numbers, hyphens.</p>
+            <button type="submit" className="auth-btn auth-btn-primary">
               Approve
             </button>
           </form>
         )}
 
-        {phase === 'submitting' && <p className="mcp-consent-status">Authorizing…</p>}
-        {phase === 'redirecting' && <p className="mcp-consent-status">Redirecting back…</p>}
+        {phase === 'submitting' && <p className="auth-status">Authorizing…</p>}
       </div>
     </div>
   );

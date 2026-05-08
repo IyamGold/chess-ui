@@ -81,7 +81,7 @@ export function createAuthorizeRouter(db) {
       expiresAtIso(config.authRequestTtl),
     );
 
-    res.redirect(302, `${config.consentUiUrl}/mcp/consent?request_id=${encodeURIComponent(requestId)}`);
+    res.redirect(302, `${config.consentUiUrl}/auth?request_id=${encodeURIComponent(requestId)}`);
   });
 
   // GET /authorize/lookup — consent UI calls this to fetch params it should display.
