@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "d6cb7d0acc02",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "server/db.js",
+    "server/index.js",
+    "server/middleware/service-auth.js",
+    "server/routes/mcp-auth.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d6/cb7d0acc02/0/metadata.json",
+      "transcript": "/d6/cb7d0acc02/0/full.jsonl",
+      "context": "/d6/cb7d0acc02/0/context.md",
+      "content_hash": "/d6/cb7d0acc02/0/content_hash.txt",
+      "prompt": "/d6/cb7d0acc02/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 51,
+    "cache_creation_tokens": 35365,
+    "cache_read_tokens": 281829,
+    "output_tokens": 2057,
+    "api_call_count": 11
+  }
+}
