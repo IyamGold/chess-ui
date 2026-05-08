@@ -27,8 +27,19 @@ function required(name) {
 
 function requiredUrl(name) {
   const v = required(name).replace(/\/$/, '');
-  if (!/^https?:\/\//i.test(v)) {
-    throw new Error(`${name} must include http:// or https:// scheme (got: ${v})`);
+  let parsed;
+  try {
+    parsed = new URL(v);
+  } catch {
+    throw new Error(`${name} is not a valid URL (got: ${v})`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`${name} must use http:// or https:// (got: ${v})`);
+  }
+  // Catch accidental "https://https://..." — the URL parser silently mangles
+  // it (host=https, pathname=//rest), which would emit garbage discovery URLs.
+  if (parsed.pathname.startsWith('//') || parsed.username || parsed.password) {
+    throw new Error(`${name} looks malformed, likely a duplicated scheme (got: ${v})`);
   }
   return v;
 }
