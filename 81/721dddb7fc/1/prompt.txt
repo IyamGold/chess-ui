@@ -1,0 +1,13 @@
+lets play chess
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+hold on we're not using the actual mcp i want to test. we have a remote  mcp onchainchess-http but i cant find it
+
+---
+
+done
