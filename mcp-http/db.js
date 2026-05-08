@@ -1,7 +1,12 @@
 import Database from 'better-sqlite3';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { config } from './config.js';
 
 export function createDb() {
+  // Ensure the parent dir exists. Railway-mounted volume may be empty on
+  // first boot; better-sqlite3 won't auto-create the directory.
+  mkdirSync(dirname(config.databasePath), { recursive: true });
   const db = new Database(config.databasePath);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
