@@ -18,6 +18,7 @@ function createDb() {
       token_hash TEXT UNIQUE,
       token_expires_at TEXT,
       passkey_address TEXT,
+      parent_user_id INTEGER REFERENCES users(id),
       created_at TEXT DEFAULT (datetime('now'))
     );
 
@@ -49,6 +50,13 @@ function createDb() {
     CREATE INDEX IF NOT EXISTS idx_rooms_invite_code ON rooms(invite_code);
     CREATE INDEX IF NOT EXISTS idx_users_token_hash ON users(token_hash);
   `);
+
+  // Migrate existing DBs: add parent_user_id if missing.
+  const cols = db.prepare("PRAGMA table_info(users)").all();
+  if (!cols.some(c => c.name === 'parent_user_id')) {
+    db.exec('ALTER TABLE users ADD COLUMN parent_user_id INTEGER REFERENCES users(id)');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_users_parent_user_id ON users(parent_user_id)');
 
   return db;
 }

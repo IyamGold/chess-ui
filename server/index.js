@@ -5,6 +5,8 @@ const rateLimit = require('express-rate-limit');
 const { createDb } = require('./db');
 const { authMiddleware } = require('./middleware/auth');
 const { createAuthRouter } = require('./routes/auth');
+const { createMcpAuthRouter } = require('./routes/mcp-auth');
+const { requireServiceAuth } = require('./middleware/service-auth');
 const { createRoomsRouter } = require('./routes/rooms');
 const { setupWebSocket } = require('./ws');
 const { createStockfishPlayer } = require('./chess/stockfishPlayer');
@@ -79,6 +81,10 @@ async function main() {
 
   // Mount routes
   app.use('/api/auth', signupLimiter, createAuthRouter(db, { passkeyServerUrl: PASSKEY_SERVER_URL }));
+
+  // Internal service-auth routes — gated by shared secret, used by the MCP HTTP server.
+  // Mounted at /api/internal to bypass the public /api/auth signup rate limit.
+  app.use('/api/internal', requireServiceAuth, createMcpAuthRouter(db));
 
   const roomsRouter = createRoomsRouter(db, {
     broadcast,
