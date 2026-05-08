@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9cbc287bf75b",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "mcp-http/.env.example",
+    "mcp-http/.gitignore",
+    "mcp-http/chess-api.js",
+    "mcp-http/config.js",
+    "mcp-http/db.js",
+    "mcp-http/game-ws.js",
+    "mcp-http/index.js",
+    "mcp-http/mcp-handler.js",
+    "mcp-http/oauth/authorize.js",
+    "mcp-http/oauth/consent-proxy.js",
+    "mcp-http/oauth/discovery.js",
+    "mcp-http/oauth/helpers.js",
+    "mcp-http/oauth/register.js",
+    "mcp-http/oauth/revoke.js",
+    "mcp-http/oauth/token.js",
+    "mcp-http/package-lock.json",
+    "mcp-http/package.json",
+    "mcp-http/tools.js",
+    "tasks/mcp-oauth.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9c/bc287bf75b/0/metadata.json",
+      "transcript": "/9c/bc287bf75b/0/full.jsonl",
+      "context": "/9c/bc287bf75b/0/context.md",
+      "content_hash": "/9c/bc287bf75b/0/content_hash.txt",
+      "prompt": "/9c/bc287bf75b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 51,
+    "cache_creation_tokens": 35365,
+    "cache_read_tokens": 281829,
+    "output_tokens": 2057,
+    "api_call_count": 11
+  }
+}

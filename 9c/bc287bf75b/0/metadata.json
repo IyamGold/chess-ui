@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9cbc287bf75b",
+  "session_id": "0190fb4a-7f88-4ff9-be68-2ebdc04b6a77",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-08T21:15:08.081488Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "mcp-http/oauth/authorize.js",
+    "mcp-http/oauth/register.js",
+    "mcp-http/.env.example",
+    "mcp-http/index.js",
+    "mcp-http/mcp-handler.js",
+    "mcp-http/oauth/consent-proxy.js",
+    "mcp-http/oauth/discovery.js",
+    "mcp-http/oauth/helpers.js",
+    "mcp-http/oauth/revoke.js",
+    "mcp-http/oauth/token.js",
+    "mcp-http/config.js",
+    "mcp-http/game-ws.js",
+    "mcp-http/package-lock.json",
+    "mcp-http/package.json",
+    "mcp-http/tools.js",
+    "tasks/mcp-oauth.md",
+    "mcp-http/.gitignore",
+    "mcp-http/chess-api.js",
+    "mcp-http/db.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7806e2128001",
+  "token_usage": {
+    "input_tokens": 51,
+    "cache_creation_tokens": 35365,
+    "cache_read_tokens": 281829,
+    "output_tokens": 2057,
+    "api_call_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-08T21:15:08.04526Z",
+    "agent_lines": 3698,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3698,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-gold-VS-code-claude-chess-UI/0190fb4a-7f88-4ff9-be68-2ebdc04b6a77.jsonl"
+}
