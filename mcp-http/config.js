@@ -25,11 +25,19 @@ function required(name) {
   return v;
 }
 
+function requiredUrl(name) {
+  const v = required(name).replace(/\/$/, '');
+  if (!/^https?:\/\//i.test(v)) {
+    throw new Error(`${name} must include http:// or https:// scheme (got: ${v})`);
+  }
+  return v;
+}
+
 export const config = {
-  baseUrl: required('BASE_URL').replace(/\/$/, ''),
-  consentUiUrl: required('CONSENT_UI_URL').replace(/\/$/, ''),
-  chessServerUrl: required('CHESS_SERVER_URL').replace(/\/$/, ''),
-  passkeyServerUrl: required('PASSKEY_SERVER_URL').replace(/\/$/, ''),
+  baseUrl: requiredUrl('BASE_URL'),
+  consentUiUrl: requiredUrl('CONSENT_UI_URL'),
+  chessServerUrl: requiredUrl('CHESS_SERVER_URL'),
+  passkeyServerUrl: requiredUrl('PASSKEY_SERVER_URL'),
   mcpServiceSecret: required('MCP_SERVICE_SECRET'),
   databasePath: process.env.DATABASE_PATH || './mcp.db',
   port: parseInt(process.env.PORT || '3002', 10),
