@@ -160,7 +160,7 @@ export default function AuthPage() {
         throw new Error(data.error || `Complete failed (${completeResp.status})`);
       }
       const { redirect_url } = await completeResp.json();
-      navigate(`/authsuccessful?redirect_url=${encodeURIComponent(redirect_url)}`, { replace: true });
+      window.location.assign(redirect_url);
     } catch (err) {
       setPhase('error');
       setErrorMsg(err.message || 'Network error');

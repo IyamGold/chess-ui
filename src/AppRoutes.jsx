@@ -3,7 +3,6 @@ import App from './App.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import AuthPage from './pages/AuthPage.jsx';
 import SigninRequiredPage from './pages/SigninRequiredPage.jsx';
-import AuthSuccessfulPage from './pages/AuthSuccessfulPage.jsx';
 
 // Compatibility redirect: /mcp/consent → /auth (preserve query string).
 function ConsentRedirect() {
@@ -17,7 +16,6 @@ export default function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/signin-required" element={<SigninRequiredPage />} />
-      <Route path="/authsuccessful" element={<AuthSuccessfulPage />} />
       <Route path="/mcp/consent" element={<ConsentRedirect />} />
       <Route path="/*" element={<App />} />
     </Routes>
