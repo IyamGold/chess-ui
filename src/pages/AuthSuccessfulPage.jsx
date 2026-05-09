@@ -26,17 +26,10 @@ export default function AuthSuccessfulPage() {
   }, [url]);
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h1 className="auth-title">Connected</h1>
-        {url ? (
-          <>
-            <p className="auth-msg">Returning you to your AI client…</p>
-            <p className="auth-sub">If nothing happens in a moment, <a href={url}>click here</a>.</p>
-          </>
-        ) : (
-          <p className="auth-error">Missing redirect URL. The authorization completed but we don't know where to send you.</p>
-        )}
+    <div className="auth-page auth-success">
+      <div className="auth-success__content">
+        <h1 className="auth-success__title">Authentication Successful</h1>
+        <p className="auth-success__sub">You can now close this tab and return to claude code.</p>
       </div>
     </div>
   );
