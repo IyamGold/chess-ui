@@ -1,0 +1,13 @@
+Use the onchainchess-http tools to create a new chess game.
+
+---
+
+check now
+
+---
+
+joined
+
+---
+
+yes let's play
