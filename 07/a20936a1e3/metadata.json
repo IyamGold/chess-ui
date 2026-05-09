@@ -3,7 +3,7 @@
   "checkpoint_id": "07a20936a1e3",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 23,
   "files_touched": [
     "index.html",
     "src/pages/AuthPage.jsx",
@@ -25,13 +25,20 @@
       "context": "/07/a20936a1e3/1/context.md",
       "content_hash": "/07/a20936a1e3/1/content_hash.txt",
       "prompt": "/07/a20936a1e3/1/prompt.txt"
+    },
+    {
+      "metadata": "/07/a20936a1e3/2/metadata.json",
+      "transcript": "/07/a20936a1e3/2/full.jsonl",
+      "context": "/07/a20936a1e3/2/context.md",
+      "content_hash": "/07/a20936a1e3/2/content_hash.txt",
+      "prompt": "/07/a20936a1e3/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 150,
-    "cache_creation_tokens": 90861,
-    "cache_read_tokens": 1844051,
-    "output_tokens": 22502,
-    "api_call_count": 50
+    "input_tokens": 4866,
+    "cache_creation_tokens": 415503,
+    "cache_read_tokens": 17742117,
+    "output_tokens": 141760,
+    "api_call_count": 152
   }
 }
