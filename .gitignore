@@ -33,3 +33,10 @@ typechain-types/
 coverage/
 coverage.json
 *.log
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
+
+# SQLite transient sidecars (re-created on DB open)
+*.db-shm
+*.db-wal
