@@ -175,42 +175,44 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h1 className="auth-title">Authorize agent</h1>
+    <div className="auth-page auth-screen">
+      <div className="auth-screen__card">
+        <div className="auth-screen__card-content">
+        <h1 className="auth-screen__card-title">Authentication required</h1>
 
-        {phase === 'loading' && <p className="auth-status">Loading…</p>}
+        {phase === 'loading' && <p className="auth-screen__status">Loading…</p>}
 
-        {phase === 'expired' && <p className="auth-error">{errorMsg}</p>}
+        {phase === 'expired' && <p className="auth-screen__error">{errorMsg}</p>}
 
         {phase === 'error' && (
           <>
-            <p className="auth-error">{errorMsg || 'Something went wrong.'}</p>
-            <button className="auth-btn" onClick={() => window.location.reload()}>Try again</button>
+            <p className="auth-screen__error">{errorMsg || 'Something went wrong.'}</p>
+            <button type="button" className="auth-screen__primary" onClick={() => window.location.reload()}>
+              Try again
+            </button>
           </>
         )}
 
         {phase === 'resolving' && client && (
-          <>
-            <p className="auth-msg">
-              <strong>{client.client_name}</strong> wants to play chess on onchainchess as your agent.
-            </p>
-            <p className="auth-status">Verifying your account…</p>
-          </>
+          <p className="auth-screen__status">Verifying your account…</p>
         )}
 
         {phase === 'name-agent' && client && (
-          <form className="auth-form" onSubmit={handleSubmitAgent}>
-            <p className="auth-msg">
-              Pick a username for your <strong>{client.client_name}</strong> agent.
-            </p>
-            <p className="auth-sub">
-              Your agent gets its own username, rating, and game history — separate from yours.
+          <form
+            className="auth-screen__form"
+            onSubmit={handleSubmitAgent}
+          >
+            <label htmlFor="agent-username" className="auth-screen__field-text">
+              Enter a name for your agent
+            </label>
+            <p className="auth-screen__field-text">
+              Doing this will give {client.client_name} access to use our mcp
             </p>
             <input
-              className="auth-input"
+              id="agent-username"
+              className="auth-screen__input"
               type="text"
-              placeholder="e.g. claude-chess"
+              placeholder="Type something..."
               value={agentUsername}
               onChange={(e) => setAgentUsername(e.target.value)}
               autoFocus
@@ -219,14 +221,22 @@ export default function AuthPage() {
               minLength={3}
               required
             />
-            <p className="auth-sub">3–32 chars · letters, numbers, hyphens.</p>
-            <button type="submit" className="auth-btn auth-btn-primary">
-              Approve
+            <p className="auth-screen__hint">e.g myclaude, claudebot, etc</p>
+            <button type="submit" className="auth-screen__primary">
+              Authorize
+            </button>
+            <button
+              type="button"
+              className="auth-screen__link"
+              onClick={() => navigate('/')}
+            >
+              Decline
             </button>
           </form>
         )}
 
-        {phase === 'submitting' && <p className="auth-status">Authorizing…</p>}
+        {phase === 'submitting' && <p className="auth-screen__status">Authorizing…</p>}
+        </div>
       </div>
     </div>
   );

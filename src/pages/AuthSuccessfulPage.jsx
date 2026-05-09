@@ -26,10 +26,10 @@ export default function AuthSuccessfulPage() {
   }, [url]);
 
   return (
-    <div className="auth-page auth-success">
-      <div className="auth-success__content">
-        <h1 className="auth-success__title">Authentication Successful</h1>
-        <p className="auth-success__sub">You can now close this tab and return to claude code.</p>
+    <div className="auth-page auth-screen">
+      <div className="auth-screen__content">
+        <h1 className="auth-screen__title">Authentication Successful</h1>
+        <p className="auth-screen__sub">You can now close this tab and return to claude code.</p>
       </div>
     </div>
   );

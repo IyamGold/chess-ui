@@ -6,37 +6,22 @@ export default function SigninRequiredPage() {
   const navigate = useNavigate();
   const requestId = new URLSearchParams(location.search).get('request_id');
 
-  // Without a request_id, this page wasn't reached from the OAuth flow.
-  if (!requestId) {
-    return (
-      <div className="auth-page">
-        <div className="auth-card">
-          <h1 className="auth-title">Sign in required</h1>
-          <p className="auth-msg">
-            Open onchainchess from your AI client to start.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const handleSignIn = () => {
-    const returnTo = `/auth?request_id=${encodeURIComponent(requestId)}`;
+    const returnTo = requestId
+      ? `/auth?request_id=${encodeURIComponent(requestId)}`
+      : '/';
     navigate(`/login?return_to=${encodeURIComponent(returnTo)}`);
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h1 className="auth-title">Sign in required</h1>
-        <p className="auth-msg">
-          You'll need to sign in to onchainchess before connecting your AI client.
+    <div className="auth-page auth-screen">
+      <div className="auth-screen__content">
+        <h1 className="auth-screen__title">Sign in to continue</h1>
+        <p className="auth-screen__sub">
+          To authorize access you must first login or create an account.
         </p>
-        <p className="auth-sub">
-          Don't have an account yet? You can sign up at the same time — it's free.
-        </p>
-        <button className="auth-btn auth-btn-primary" onClick={handleSignIn}>
-          Sign in to onchainchess →
+        <button className="auth-screen__btn" onClick={handleSignIn}>
+          Sign in
         </button>
       </div>
     </div>
