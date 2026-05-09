@@ -1,0 +1,5 @@
+Use the onchainchess-http tools to start a chess game with me. I'll play black
+
+---
+
+http://localhost:65393/callback?REDACTED&REDACTED
