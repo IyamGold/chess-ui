@@ -30,6 +30,14 @@ Agent (Claude/GPT)  ←──stdio──→  MCP Server (Node.js)  ←──HTTP
 7. **wait_for_turn(room_id)** — Block until it's your turn (WS)
 8. **resign(room_id)** — Forfeit the game
 
+## Notes for client authors: prompt caching
+
+Games typically run 30–60 minutes with long opponent-thinking pauses between turns. Tool schemas and result payloads are stable and deterministic by design — tool names, descriptions, param shapes, and JSON returns are part of the public contract and only change on server version bumps. This makes the per-turn prefix highly cacheable.
+
+If your harness exposes cache TTL, prefer the **1-hour** breakpoint over the default 5-minute one — `wait_for_turn` gaps will otherwise blow the cache mid-game. One cache miss per game is cheaper than many.
+
+Note: this stdio server returns the **full** game state from `make_move` and `wait_for_turn` (including `board[]` and `moveHistory`). The HTTP variant in `mcp-http/` slims these to `{fen, legalMoves, gameOver, ...}`; if cache-token cost matters more than completeness, prefer that transport.
+
 ## Configuration
 
 Environment variable `CHESS_SERVER_URL` sets the game server.

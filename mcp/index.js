@@ -1,3 +1,13 @@
+// Public MCP API surface. Tool names, descriptions, param names, and param
+// descriptions below are part of the consumer contract — clients build prompt
+// caches keyed on them. Renaming, reordering, or rewording any of these
+// invalidates every consumer's cached prefix on the next request. Treat edits
+// here as a breaking change; bump the server version when shipping one.
+//
+// Result shapes (the JSON returned via `ok(...)`) are also part of this
+// contract for cache stability. Keep them deterministic for a given game
+// state (no timestamps, no random IDs beyond per-game ones like inviteCode).
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
