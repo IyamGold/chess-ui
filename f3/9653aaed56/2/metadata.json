@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f39653aaed56",
+  "session_id": "25e2724a-8ffb-468b-a977-6377a0686e03",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-09T14:32:43.94496Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/AppRoutes.jsx",
+    "src/pages/AuthPage.jsx",
+    "src/pages/AuthSuccessfulPage.jsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "3b196351b01f",
+  "token_usage": {
+    "input_tokens": 32,
+    "cache_creation_tokens": 67575,
+    "cache_read_tokens": 190172,
+    "output_tokens": 2394,
+    "api_call_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-09T14:32:43.890532Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 38,
+    "total_committed": 0,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-gold-VS-code-claude-chess-UI/25e2724a-8ffb-468b-a977-6377a0686e03.jsonl"
+}

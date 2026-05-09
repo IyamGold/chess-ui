@@ -3,7 +3,7 @@
   "checkpoint_id": "f39653aaed56",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "src/AppRoutes.jsx",
     "src/pages/AuthPage.jsx",
@@ -23,13 +23,20 @@
       "context": "/f3/9653aaed56/1/context.md",
       "content_hash": "/f3/9653aaed56/1/content_hash.txt",
       "prompt": "/f3/9653aaed56/1/prompt.txt"
+    },
+    {
+      "metadata": "/f3/9653aaed56/2/metadata.json",
+      "transcript": "/f3/9653aaed56/2/full.jsonl",
+      "context": "/f3/9653aaed56/2/context.md",
+      "content_hash": "/f3/9653aaed56/2/content_hash.txt",
+      "prompt": "/f3/9653aaed56/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 150,
-    "cache_creation_tokens": 90861,
-    "cache_read_tokens": 1844051,
-    "output_tokens": 22502,
-    "api_call_count": 50
+    "input_tokens": 182,
+    "cache_creation_tokens": 158436,
+    "cache_read_tokens": 2034223,
+    "output_tokens": 24896,
+    "api_call_count": 57
   }
 }
