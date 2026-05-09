@@ -40,3 +40,6 @@ coverage.json
 # SQLite transient sidecars (re-created on DB open)
 *.db-shm
 *.db-wal
+
+# Live SQLite database — never tracked (contains user data)
+server/chess.db
