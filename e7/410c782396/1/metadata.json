@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "e7410c782396",
+  "session_id": "20838461-d73b-457b-a327-bcfff44243b4",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-07T15:34:08.897349Z",
+  "branch": "rejoin-hardening",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "src/AppRoutes.jsx",
+    "src/components/OnlineChessboard.jsx",
+    "server/test.js",
+    "src/App.jsx",
+    "src/components/WaitingRoom.jsx",
+    "src/hooks/useOnlineGame.js",
+    "tasks/rejoin-hardening.md",
+    "server/index.js",
+    "server/reaper.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "24a680756c50",
+  "transcript_identifier_at_start": "5dcb8b1b-94b0-431c-b05b-6b0203c4fe8b",
+  "checkpoint_transcript_start": 178,
+  "transcript_lines_at_start": 178,
+  "token_usage": {
+    "input_tokens": 99,
+    "cache_creation_tokens": 55496,
+    "cache_read_tokens": 1562222,
+    "output_tokens": 20445,
+    "api_call_count": 39
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-07T15:34:08.870957Z",
+    "agent_lines": 324,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 324,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-gold-VS-code-claude-chess-UI/20838461-d73b-457b-a327-bcfff44243b4.jsonl"
+}
