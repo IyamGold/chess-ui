@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "e7410c782396",
+  "session_id": "f9881741-b0a6-44d3-9969-f137bef22069",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-07T15:34:25.800405Z",
+  "branch": "rejoin-hardening",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "server/index.js",
+    "server/reaper.js",
+    "src/AppRoutes.jsx",
+    "src/components/OnlineChessboard.jsx",
+    "server/test.js",
+    "src/App.jsx",
+    "src/components/WaitingRoom.jsx",
+    "src/hooks/useOnlineGame.js",
+    "tasks/rejoin-hardening.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "e47f24dfb841",
+  "token_usage": {
+    "input_tokens": 4835,
+    "cache_creation_tokens": 11276,
+    "cache_read_tokens": 62781,
+    "output_tokens": 4316,
+    "api_call_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-07T15:34:25.787531Z",
+    "agent_lines": 324,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 324,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-gold-VS-code-claude-chess-UI/f9881741-b0a6-44d3-9969-f137bef22069.jsonl"
+}
