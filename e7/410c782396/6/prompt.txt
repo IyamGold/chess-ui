@@ -1,0 +1,25 @@
+lets play chess
+
+---
+
+[Request interrupted by user]
+
+---
+
+i thought we needed auth?
+
+---
+
+i mean for the mcp
+
+---
+
+Use onchainchess-http to start a chess game where I play black
+
+---
+
+awesome love!
+
+---
+
+[Request interrupted by user]

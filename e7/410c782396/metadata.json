@@ -3,7 +3,7 @@
   "checkpoint_id": "e7410c782396",
   "strategy": "manual-commit",
   "branch": "rejoin-hardening",
-  "checkpoints_count": 7,
+  "checkpoints_count": 10,
   "files_touched": [
     "server/index.js",
     "server/reaper.js",
@@ -57,13 +57,20 @@
       "context": "/e7/410c782396/5/context.md",
       "content_hash": "/e7/410c782396/5/content_hash.txt",
       "prompt": "/e7/410c782396/5/prompt.txt"
+    },
+    {
+      "metadata": "/e7/410c782396/6/metadata.json",
+      "transcript": "/e7/410c782396/6/full.jsonl",
+      "context": "/e7/410c782396/6/context.md",
+      "content_hash": "/e7/410c782396/6/content_hash.txt",
+      "prompt": "/e7/410c782396/6/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 11542,
-    "cache_creation_tokens": 1145870,
-    "cache_read_tokens": 45747601,
-    "output_tokens": 273494,
-    "api_call_count": 344
+    "input_tokens": 11674,
+    "cache_creation_tokens": 1244179,
+    "cache_read_tokens": 49248017,
+    "output_tokens": 327926,
+    "api_call_count": 406
   }
 }
