@@ -8,6 +8,7 @@ const { createAuthRouter } = require('./routes/auth');
 const { createMcpAuthRouter } = require('./routes/mcp-auth');
 const { requireServiceAuth } = require('./middleware/service-auth');
 const { createRoomsRouter } = require('./routes/rooms');
+const { createReaper } = require('./reaper');
 const { setupWebSocket } = require('./ws');
 const { createStockfishPlayer } = require('./chess/stockfishPlayer');
 
@@ -103,29 +104,14 @@ async function main() {
     });
   });
 
-  // Room expiry: every 5 minutes, delete stale waiting rooms
-  // Delete game_states first (child FK), then rooms (parent)
-  const findStaleRooms = db.prepare(`
-    SELECT id FROM rooms
-    WHERE status = 'waiting'
-    AND created_at < datetime('now', '-15 minutes')
-  `);
-  const deleteGameStateByRoom = db.prepare('DELETE FROM game_states WHERE room_id = ?');
-  const deleteRoomById = db.prepare('DELETE FROM rooms WHERE id = ?');
-
-  const expireStaleRooms = db.transaction(() => {
-    const stale = findStaleRooms.all();
-    for (const row of stale) {
-      deleteGameStateByRoom.run(row.id);
-      deleteRoomById.run(row.id);
-    }
-    return stale.length;
-  });
+  // Room reaper: every 5 minutes, delete stale waiting rooms (>15 min) and
+  // abandoned playing rooms (>7 days idle). Finished games are kept as history.
+  const reapStaleRooms = createReaper(db);
 
   setInterval(() => {
-    const count = expireStaleRooms();
+    const count = reapStaleRooms();
     if (count > 0) {
-      console.log(`Expired ${count} stale waiting room(s)`);
+      console.log(`Reaped ${count} stale room(s)`);
     }
   }, 5 * 60 * 1000);
 

@@ -468,6 +468,63 @@ async function testWebSocket() {
   assert(!result.upgraded, 'invalid token → connection rejected');
 }
 
+// Reaper unit test — runs in-process against a dedicated temp DB with
+// controlled timestamps (no HTTP server / no waiting on intervals).
+function testReaper() {
+  console.log('\n13. Room reaper');
+
+  const REAPER_DB = path.join(__dirname, 'test-reaper.db');
+  for (const ext of ['', '-wal', '-shm']) {
+    try { fs.unlinkSync(REAPER_DB + ext); } catch {}
+  }
+
+  // db.js captures CHESS_DB_PATH at require time, so set it before requiring.
+  process.env.CHESS_DB_PATH = REAPER_DB;
+  const { createDb } = require('./db');
+  const { createReaper } = require('./reaper');
+  const db = createDb();
+
+  // gsUpdatedExpr controls game_states.updated_at — the "last move" time that
+  // drives the abandoned-playing reap (see reaper.js).
+  const seed = (code, status, createdExpr, gsUpdatedExpr) => {
+    const info = db.prepare(
+      `INSERT INTO rooms (invite_code, status, created_at, updated_at) VALUES (?, ?, ${createdExpr}, ${createdExpr})`
+    ).run(code, status);
+    const id = info.lastInsertRowid;
+    db.prepare(
+      `INSERT INTO game_states (room_id, board, current_turn, updated_at) VALUES (?, '[]', 'white', ${gsUpdatedExpr})`
+    ).run(id);
+    return id;
+  };
+
+  const staleWaiting = seed('REAP01', 'waiting', "datetime('now','-20 minutes')", "datetime('now','-20 minutes')");
+  const freshWaiting = seed('KEEP01', 'waiting', "datetime('now')", "datetime('now')");
+  // Abandoned: room joined 30d ago, last move 8d ago → reaped.
+  const abandonedPlaying = seed('REAP02', 'playing', "datetime('now','-30 days')", "datetime('now','-8 days')");
+  // Long-running but active: joined 30d ago, but a move 1h ago → kept.
+  // (Guards against keying idle-time off rooms.updated_at, which isn't bumped per move.)
+  const activePlaying = seed('KEEP02', 'playing', "datetime('now','-30 days')", "datetime('now','-1 hours')");
+  const finished = seed('KEEP03', 'finished', "datetime('now','-60 days')", "datetime('now','-30 days')");
+
+  const count = createReaper(db)();
+
+  const roomExists = (id) => !!db.prepare('SELECT id FROM rooms WHERE id = ?').get(id);
+  const stateExists = (id) => !!db.prepare('SELECT room_id FROM game_states WHERE room_id = ?').get(id);
+
+  assert(count === 2, 'reaped exactly 2 rooms');
+  assert(!roomExists(staleWaiting), 'stale waiting room (>15min) deleted');
+  assert(!stateExists(staleWaiting), 'stale waiting game_state deleted (FK child)');
+  assert(!roomExists(abandonedPlaying), 'abandoned playing room (>7d idle) deleted');
+  assert(roomExists(freshWaiting), 'fresh waiting room kept');
+  assert(roomExists(activePlaying), 'recently-active playing room kept');
+  assert(roomExists(finished), 'finished room kept as history');
+
+  db.close();
+  for (const ext of ['', '-wal', '-shm']) {
+    try { fs.unlinkSync(REAPER_DB + ext); } catch {}
+  }
+}
+
 // --- Main ---
 
 async function main() {
@@ -494,6 +551,7 @@ async function main() {
     await testEnPassant();
     await testPromotion();
     await testWebSocket();
+    testReaper();
   } catch (err) {
     console.error('\n\x1b[31mUnexpected error:\x1b[0m', err);
     failed++;

@@ -6,13 +6,14 @@ import { needsPromotion, isKingInCheck } from '../moveValidation';
 import { playMoveSound, playCaptureSound, playNotifySound } from '../sounds';
 import { useOnlineGame } from '../hooks/useOnlineGame';
 
-function OnlineChessboard({ serverToken, roomId, onBackToList }) {
-  const game = useOnlineGame({ serverToken, roomId });
+function OnlineChessboard({ serverToken, roomId, onBackToList, onRoomGone }) {
+  const game = useOnlineGame({ serverToken, roomId, onRoomGone });
 
   const [draggedPiece, setDraggedPiece] = useState(null);
   const [draggedFrom, setDraggedFrom] = useState(null);
   const [validMoves, setValidMoves] = useState([]);
   const [promotionData, setPromotionData] = useState(null); // { from, to, piece }
+  const [copied, setCopied] = useState(false);
 
   const isMyTurn = game.myColor === game.currentTurn;
 
@@ -95,11 +96,50 @@ function OnlineChessboard({ serverToken, roomId, onBackToList }) {
     game.submitMove(uci);
   }, [promotionData, game]);
 
+  const inviteCode = game.room?.inviteCode;
+  const handleCopyInvite = useCallback(async () => {
+    if (!inviteCode) return;
+    try {
+      await navigator.clipboard.writeText(inviteCode);
+    } catch {
+      // Fallback for non-HTTPS contexts where clipboard API is unavailable
+      const el = document.createElement('textarea');
+      el.value = inviteCode;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [inviteCode]);
+
   // Loading state
   if (game.status === 'loading' || !game.board) {
     return (
       <div className="online-loading">
         <p>Loading game...</p>
+      </div>
+    );
+  }
+
+  // Waiting for an opponent to join — restorable on reload via /game/:roomId.
+  // The 'join' WebSocket event flips status to 'playing' and the board appears.
+  if (game.status === 'waiting') {
+    return (
+      <div className="new-game-setup waiting-room">
+        <h2>Waiting for Opponent</h2>
+        <p className="waiting-subtitle">Share this code with your opponent:</p>
+        <div className="invite-code-display">
+          <span className="invite-code">{inviteCode || '…'}</span>
+          <button className="copy-button" onClick={handleCopyInvite} disabled={!inviteCode}>
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+        <p className="waiting-hint">The game will start automatically when they join.</p>
+        <div className="setup-actions">
+          <button className="setup-back" onClick={onBackToList}>Cancel</button>
+        </div>
       </div>
     );
   }
