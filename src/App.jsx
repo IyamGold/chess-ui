@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { useState, useRef } from 'react';
+import { Navigate, useLocation, useParams, useNavigate } from 'react-router-dom';
 
 import './App.css';
 import Chessboard from './Chessboard';
 import GameList from './components/GameList';
 import GameSetup from './components/GameSetup';
 import JoinGame from './components/JoinGame';
-import WaitingRoom from './components/WaitingRoom';
 import OnlineChessboard from './components/OnlineChessboard';
 import { createGame, saveGame, loadGame, markGamePublished, setCurrentUser } from './utils/gameManager';
 import { usePasskeyAuth } from './hooks/usePasskeyAuth';
@@ -14,34 +13,19 @@ import { usePasskeyPublish } from './hooks/usePasskeyPublish';
 import { useServerAuth } from './hooks/useServerAuth';
 import { GAME_SERVER_URL } from './config';
 
-// Persist/restore online game session across reloads
-const SS_ONLINE_KEY = 'online_game_session';
-
-function saveOnlineSession(view, roomId, inviteCode) {
-  if (view === 'online' || view === 'waiting') {
-    localStorage.setItem(SS_ONLINE_KEY, JSON.stringify({ view, roomId, inviteCode }));
-  } else {
-    localStorage.removeItem(SS_ONLINE_KEY);
-  }
-}
-
-function loadOnlineSession() {
-  try {
-    const raw = localStorage.getItem(SS_ONLINE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-
 function App() {
   const location = useLocation();
-  const saved = loadOnlineSession();
-  const [view, setView] = useState(saved?.view || 'list');
+  const navigate = useNavigate();
+  // The active online room is identified by the URL (/game/:roomId), so it is
+  // deep-linkable, shareable, and restores correctly on reload — even with
+  // multiple concurrent games. No localStorage session needed.
+  const { roomId: roomIdParam } = useParams();
+  const onlineRoomId = roomIdParam ? Number(roomIdParam) : null;
+
+  const [view, setView] = useState('list');
   const [activeGame, setActiveGame] = useState(null);
   const [publishStatus, setPublishStatus] = useState(null);
-
-  // Online game state
-  const [onlineRoomId, setOnlineRoomId] = useState(saved?.roomId || null);
-  const [onlineInviteCode, setOnlineInviteCode] = useState(saved?.inviteCode || null);
+  const [notice, setNotice] = useState(null);
 
   const passkey = usePasskeyAuth();
   const serverAuth = useServerAuth({
@@ -55,11 +39,6 @@ function App() {
     credentialId: passkey.credentialId,
     rawId: passkey.rawId,
   });
-
-  // Persist online session to sessionStorage on state changes
-  useEffect(() => {
-    saveOnlineSession(view, onlineRoomId, onlineInviteCode);
-  }, [view, onlineRoomId, onlineInviteCode]);
 
   // Scope game storage to the authenticated user — must be synchronous
   // so that GameList reads the correct localStorage key on first render.
@@ -76,9 +55,8 @@ function App() {
     serverAuth.logout();
     setActiveGame(null);
     setPublishStatus(null);
-    setOnlineRoomId(null);
-    setOnlineInviteCode(null);
     setView('list');
+    if (onlineRoomId) navigate('/');
   };
 
   const handleNewGame = () => {
@@ -113,9 +91,9 @@ function App() {
         return;
       }
 
-      setOnlineRoomId(data.roomId);
-      setOnlineInviteCode(data.inviteCode);
-      setView('waiting');
+      // The room starts in 'waiting'; OnlineChessboard shows the invite code
+      // until the opponent joins, then swaps to the board.
+      navigate(`/game/${data.roomId}`);
     } catch (err) {
       console.error('Create room error:', err);
     }
@@ -126,13 +104,7 @@ function App() {
   };
 
   const handleJoined = (roomId) => {
-    setOnlineRoomId(roomId);
-    setView('online');
-  };
-
-  const handleWaitingGameStart = (roomId) => {
-    setOnlineRoomId(roomId);
-    setView('online');
+    navigate(`/game/${roomId}`);
   };
 
   const handleResumeGame = (gameId) => {
@@ -178,9 +150,18 @@ function App() {
   const handleBackToList = () => {
     setActiveGame(null);
     setPublishStatus(null);
-    setOnlineRoomId(null);
-    setOnlineInviteCode(null);
     setView('list');
+    if (onlineRoomId) navigate('/');
+  };
+
+  // The online room no longer exists (abandoned, reaped, or stale link).
+  // Clear it from the URL and return to the list with a brief notice instead
+  // of stranding the user on an error screen.
+  const handleRoomGone = () => {
+    setView('list');
+    navigate('/');
+    setNotice('That game is no longer available.');
+    setTimeout(() => setNotice(null), 5000);
   };
 
   // Unauthenticated: route to /login, preserving where they tried to go.
@@ -210,61 +191,56 @@ function App() {
         </div>
       )}
 
-      {view === 'list' && (
-        <GameList
-          onNewGame={handleNewGame}
-          onResumeGame={handleResumeGame}
-          onResumeOnline={(roomId) => { setOnlineRoomId(roomId); setView('online'); }}
-          serverToken={serverAuth.serverToken}
-        />
-      )}
+      {notice && <div className="publish-toast error">{notice}</div>}
 
-      {view === 'setup' && (
-        <GameSetup
-          onStartLocal={handleStartLocal}
-          onStartOnline={handleStartOnline}
-          onJoinGame={handleJoinGame}
-          onCancel={() => setView('list')}
-          isServerConnected={serverAuth.isConnected}
-        />
-      )}
-
-      {view === 'join' && (
-        <JoinGame
-          serverToken={serverAuth.serverToken}
-          onJoined={handleJoined}
-          onCancel={() => setView('setup')}
-        />
-      )}
-
-      {view === 'waiting' && (
-        <WaitingRoom
-          inviteCode={onlineInviteCode}
-          serverToken={serverAuth.serverToken}
-          roomId={onlineRoomId}
-          onGameStart={handleWaitingGameStart}
-          onCancel={handleBackToList}
-        />
-      )}
-
-      {view === 'online' && onlineRoomId && (
+      {onlineRoomId ? (
         <OnlineChessboard
           key={onlineRoomId}
           serverToken={serverAuth.serverToken}
           roomId={onlineRoomId}
           onBackToList={handleBackToList}
+          onRoomGone={handleRoomGone}
         />
-      )}
+      ) : (
+        <>
+          {view === 'list' && (
+            <GameList
+              onNewGame={handleNewGame}
+              onResumeGame={handleResumeGame}
+              onResumeOnline={(roomId) => navigate(`/game/${roomId}`)}
+              serverToken={serverAuth.serverToken}
+            />
+          )}
 
-      {view === 'playing' && activeGame && (
-        <Chessboard
-          key={activeGame.id}
-          initialState={activeGame}
-          onSave={handleSave}
-          onGameEnd={handleGameEnd}
-          onBackToList={handleBackToList}
-          engineColorProp={activeGame.engineColor}
-        />
+          {view === 'setup' && (
+            <GameSetup
+              onStartLocal={handleStartLocal}
+              onStartOnline={handleStartOnline}
+              onJoinGame={handleJoinGame}
+              onCancel={() => setView('list')}
+              isServerConnected={serverAuth.isConnected}
+            />
+          )}
+
+          {view === 'join' && (
+            <JoinGame
+              serverToken={serverAuth.serverToken}
+              onJoined={handleJoined}
+              onCancel={() => setView('setup')}
+            />
+          )}
+
+          {view === 'playing' && activeGame && (
+            <Chessboard
+              key={activeGame.id}
+              initialState={activeGame}
+              onSave={handleSave}
+              onGameEnd={handleGameEnd}
+              onBackToList={handleBackToList}
+              engineColorProp={activeGame.engineColor}
+            />
+          )}
+        </>
       )}
     </div>
   );

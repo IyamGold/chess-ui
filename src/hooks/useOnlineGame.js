@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { GAME_SERVER_URL, GAME_WS_URL } from '../config';
 import { playMoveSound, playCaptureSound } from '../sounds';
 
-export function useOnlineGame({ serverToken, roomId }) {
+export function useOnlineGame({ serverToken, roomId, onRoomGone }) {
   const [board, setBoard] = useState(null);
   const [currentTurn, setCurrentTurn] = useState(null);
   const [myColor, setMyColor] = useState(null);
@@ -14,8 +14,11 @@ export function useOnlineGame({ serverToken, roomId }) {
   const [error, setError] = useState(null);
 
   const wsRef = useRef(null);
-  const roomIdRef = useRef(roomId);
-  roomIdRef.current = roomId;
+
+  // Keep the latest onRoomGone in a ref so fetchRoom's identity (and the
+  // WebSocket effect that depends on it) stays stable across renders.
+  const onRoomGoneRef = useRef(onRoomGone);
+  useEffect(() => { onRoomGoneRef.current = onRoomGone; }, [onRoomGone]);
 
   const headers = useCallback(() => ({
     'Content-Type': 'application/json',
@@ -32,6 +35,14 @@ export function useOnlineGame({ serverToken, roomId }) {
       });
 
       if (!resp.ok) {
+        // 404 = the room/game no longer exists (abandoned, reaped, or never
+        // existed). This is a stale session, not a transient failure — hand
+        // it to the caller to clear and route back to the list instead of
+        // stranding the user on an error screen.
+        if (resp.status === 404 && onRoomGoneRef.current) {
+          onRoomGoneRef.current();
+          return;
+        }
         const data = await resp.json().catch(() => ({}));
         setError(data.error || 'Failed to fetch room');
         setStatus('error');

@@ -17,6 +17,7 @@ export default function AppRoutes() {
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/signin-required" element={<SigninRequiredPage />} />
       <Route path="/mcp/consent" element={<ConsentRedirect />} />
+      <Route path="/game/:roomId" element={<App />} />
       <Route path="/*" element={<App />} />
     </Routes>
   );
