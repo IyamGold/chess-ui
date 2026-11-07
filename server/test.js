@@ -196,15 +196,10 @@ async function testPasskeyToken() {
     passkeyAddress: '0xtest123',
     username: 'passkey-user',
   });
-  assert(r1.status === 201, 'new passkey user → 201');
-  assert(typeof r1.body.token === 'string', 'has token');
+  assert(r1.status === 400, 'unproven passkey bridge → 400');
+  assert(!r1.body.token, 'missing credential must not receive a token');
+  assert(r1.body.error.includes('credentialId'), 'explains missing credential');
 
-  const r2 = await post('/api/auth/token', {
-    passkeyAddress: '0xtest123',
-    username: 'passkey-user',
-  });
-  assert(r2.status === 200, 'same passkey again → 200');
-  assert(r2.body.token === r1.body.token, 'same token returned');
 }
 
 async function testRoomCreation() {

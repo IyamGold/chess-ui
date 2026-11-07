@@ -47,6 +47,10 @@ function createDb() {
       updated_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS draw_offers (
+      room_id INTEGER PRIMARY KEY REFERENCES rooms(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id)
+    );
     CREATE INDEX IF NOT EXISTS idx_rooms_invite_code ON rooms(invite_code);
     CREATE INDEX IF NOT EXISTS idx_users_token_hash ON users(token_hash);
   `);

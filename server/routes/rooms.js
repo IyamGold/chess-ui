@@ -267,6 +267,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
       black: blackUser ? blackUser.username : null,
       myColor,
       fen,
+      drawOffer: (() => {const offer=db.prepare('SELECT user_id FROM draw_offers WHERE room_id=?').get(roomId);return offer ? (offer.user_id===room.white_user_id?'white':'black') : null;})(),
       currentTurn: gameState.currentTurn,
       moveHistory: gameState.moveHistory,
       legalMoves,
@@ -432,6 +433,31 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
         }
       }
     }
+  });
+
+  // Player-to-player draw agreement. No spectator can offer or accept.
+  router.post('/:id/draw', (req,res) => {
+    const id=Number(req.params.id), action=req.body.action;
+    const apply=db.transaction(() => {
+      const room=findRoomById.get(id);
+      if(!room)return {status:404,error:'Room not found'};
+      if(room.status!=='playing')return {status:409,error:'Game is not in progress'};
+      if(req.user.id!==room.white_user_id&&req.user.id!==room.black_user_id)return {status:403,error:'Not a player'};
+      const offer=db.prepare('SELECT user_id FROM draw_offers WHERE room_id=?').get(id);
+      if(action==='offer'){
+        if(offer)return {status:409,error:'A draw offer is already pending'};
+        db.prepare('INSERT INTO draw_offers VALUES (?,?)').run(id,req.user.id);
+      }else if(action==='accept'||action==='decline'){
+        if(!offer||offer.user_id===req.user.id)return {status:409,error:'No opponent draw offer'};
+        db.prepare('DELETE FROM draw_offers WHERE room_id=?').run(id);
+        if(action==='accept')updateRoomResult.run('1/2-1/2',id);
+      }else return {status:400,error:'Invalid draw action'};
+      return {status:200};
+    });
+    const result=apply();
+    if(result.error)return res.status(result.status).json({error:result.error});
+    broadcast(id,action==='accept'?'gameOver':'drawOffer',action==='accept'?{result:'1/2-1/2',reason:'agreement'}:{});
+    res.json({ok:true});
   });
 
   // Resign

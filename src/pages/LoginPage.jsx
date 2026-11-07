@@ -1,40 +1,28 @@
-import { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import AuthGate from '../components/AuthGate';
-import { usePasskeyAuth } from '../hooks/usePasskeyAuth';
-
-// Validate and sanitize the return_to query param. Must be a same-origin
-// relative path (starts with `/`, no protocol-relative `//`).
-function parseReturnTo(search) {
-  const raw = new URLSearchParams(search).get('return_to');
-  if (!raw) return '/';
-  if (raw.startsWith('/') && !raw.startsWith('//')) return raw;
-  return '/';
-}
-
+import { Navigate } from 'react-router-dom';
+import { useLogin } from '../login/context';
+import './AuthPages.css';
 export default function LoginPage() {
-  const passkey = usePasskeyAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const returnTo = parseReturnTo(location.search);
-
-  // Already authenticated? Skip the gate.
-  useEffect(() => {
-    if (passkey.isAuthenticated) {
-      navigate(returnTo, { replace: true });
-    }
-  }, [passkey.isAuthenticated, returnTo, navigate]);
-
-  // Wrap signup/login so we navigate after they resolve. AuthGate already
-  // surfaces errors from the rejected promises.
-  const handleSignup = async (username) => {
-    await passkey.signup(username);
-    navigate(returnTo, { replace: true });
-  };
-  const handleLogin = async () => {
-    await passkey.login();
-    navigate(returnTo, { replace: true });
-  };
-
-  return <AuthGate onSignup={handleSignup} onLogin={handleLogin} />;
+  const login = useLogin();
+  if (login.loading)
+    return (
+      <main className="auth-gate">
+        <p>Checking your game session…</p>
+      </main>
+    );
+  if (login.isAuthenticated) return <Navigate to="/" replace />;
+  const error = new URLSearchParams(location.search).has('error');
+  return (
+    <main className="auth-gate">
+      <h1>Login Chess</h1>
+      <p>Play a friend or challenge the computer.</p>
+      <p>One Login account. Your passkey stays with Login.</p>
+      {error && (
+        <p role="alert">Sign-in was cancelled, expired, or unavailable. You can try again.</p>
+      )}
+      <a className="setup-start" href="/api/login/start">
+        Continue with Login
+      </a>
+      <p>KYC is optional. This hackathon demo uses testnet money and sandbox verification only.</p>
+    </main>
+  );
 }

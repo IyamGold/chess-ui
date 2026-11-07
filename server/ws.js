@@ -6,7 +6,7 @@ function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-function setupWebSocket(server, db) {
+function setupWebSocket(server, db, login = null) {
   const wss = new WebSocketServer({ noServer: true });
 
   // Track clients per room: Map<roomId, Set<{ ws, userId, username, role }>>
@@ -36,6 +36,12 @@ function setupWebSocket(server, db) {
     const tokenFromProtocol = protocols.find(p => p.startsWith('token.'));
     const token = tokenFromProtocol ? tokenFromProtocol.slice(6) : parsed.query.token;
 
+    let user;
+    if (login) {
+      if (request.headers.origin !== login.origin) { socket.write('HTTP/1.1 403 Forbidden\r\n\r\n'); socket.destroy(); return; }
+      user=login.session(request);
+      if(!user) {socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');socket.destroy();return;}
+    } else {
     if (!token) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
@@ -43,7 +49,7 @@ function setupWebSocket(server, db) {
     }
 
     const tokenHash = hashToken(token);
-    const user = findUserByTokenHash.get(tokenHash);
+    user = findUserByTokenHash.get(tokenHash);
     if (!user) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
@@ -60,6 +66,7 @@ function setupWebSocket(server, db) {
       }
     }
 
+    }
     const room = findRoom.get(roomId);
     if (!room) {
       socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
@@ -74,9 +81,8 @@ function setupWebSocket(server, db) {
     }
 
     // Accept the connection with the token protocol so the client handshake succeeds
-    const acceptProtocol = tokenFromProtocol || undefined;
     wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, { roomId, user, role });
+      wss.emit('connection', ws, { roomId, user, role, request });
     });
   });
 
@@ -97,7 +103,7 @@ function setupWebSocket(server, db) {
   wss.on('close', () => clearInterval(heartbeat));
 
   // Handle new connections
-  wss.on('connection', (ws, { roomId, user, role }) => {
+  wss.on('connection', (ws, { roomId, user, role, request }) => {
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
 
@@ -106,7 +112,7 @@ function setupWebSocket(server, db) {
       rooms.set(roomId, new Set());
     }
 
-    const client = { ws, userId: user.id, username: user.username, role };
+    const client = { ws, userId: user.id, username: user.username, role, request };
     rooms.get(roomId).add(client);
 
     // Send joined confirmation to the new client
@@ -144,8 +150,8 @@ function setupWebSocket(server, db) {
     });
 
     // Handle errors
-    ws.on('error', (err) => {
-      console.error(`WebSocket error for user ${user.id} in room ${roomId}:`, err.message);
+    ws.on('error', () => {
+      console.error('Game WebSocket transport failed');
     });
   });
 
@@ -157,6 +163,7 @@ function setupWebSocket(server, db) {
     const message = JSON.stringify({ event, data });
 
     for (const client of roomClients) {
+      if(login && !login.session(client.request)) {client.ws.close(1008, 'Session expired');continue;}
       if (excludeUserId && client.userId === excludeUserId) continue;
       if (client.ws.readyState === 1) { // WebSocket.OPEN
         client.ws.send(message);

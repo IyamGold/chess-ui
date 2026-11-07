@@ -359,3 +359,4 @@
   transform: none;
   box-shadow: none;
 }
+.login-account{max-width:1000px;margin:1rem auto;padding:1.25rem;border:1px solid #3c4b43;border-radius:12px;background:#17251e;color:#eef6ef}.login-account h2{margin-top:0}.login-account input{padding:.5rem;margin:.5rem}.login-account button{padding:.5rem}.login-actions{display:flex;gap:1rem;flex-wrap:wrap}.login-actions a{color:#b8edc4;text-decoration:underline}.login-account .small{font-size:.85rem;opacity:.85}.auth-gate a{display:inline-block;padding:1rem;color:inherit;background:#47775b;border-radius:8px}

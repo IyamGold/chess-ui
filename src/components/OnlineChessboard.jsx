@@ -6,8 +6,17 @@ import { needsPromotion, isKingInCheck } from '../moveValidation';
 import { playMoveSound, playCaptureSound, playNotifySound } from '../sounds';
 import { useOnlineGame } from '../hooks/useOnlineGame';
 
-function OnlineChessboard({ serverToken, roomId, onBackToList, onRoomGone }) {
-  const game = useOnlineGame({ serverToken, roomId, onRoomGone });
+async function gameAction(roomId, path, body = {}) {
+  const response = await fetch(`/api/rooms/${roomId}/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error((await response.json()).error || 'Could not complete action');
+}
+
+function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
+  const game = useOnlineGame({ sessionReady, roomId, onRoomGone });
 
   const [draggedPiece, setDraggedPiece] = useState(null);
   const [draggedFrom, setDraggedFrom] = useState(null);
@@ -17,84 +26,103 @@ function OnlineChessboard({ serverToken, roomId, onBackToList, onRoomGone }) {
 
   const isMyTurn = game.myColor === game.currentTurn;
 
-  const handleDragStart = useCallback((squareIndex, piece) => {
-    // Only allow dragging own pieces on own turn
-    if (!isMyTurn) return;
-    const isWhite = piece > 0;
-    if ((game.myColor === 'white' && !isWhite) || (game.myColor === 'black' && isWhite)) return;
+  const handleDragStart = useCallback(
+    (squareIndex, piece) => {
+      // Only allow dragging own pieces on own turn
+      if (!isMyTurn) return;
+      const isWhite = piece > 0;
+      if ((game.myColor === 'white' && !isWhite) || (game.myColor === 'black' && isWhite)) return;
 
-    setDraggedPiece(piece);
-    setDraggedFrom(squareIndex);
-    setValidMoves(game.getValidMovesForSquare(squareIndex));
-  }, [isMyTurn, game]);
+      setDraggedPiece(piece);
+      setDraggedFrom(squareIndex);
+      setValidMoves(game.getValidMovesForSquare(squareIndex));
+    },
+    [isMyTurn, game],
+  );
 
   const handleDragOver = (e) => {
     e.preventDefault();
   };
 
-  const handleDrop = useCallback(async (squareIndex) => {
-    if (draggedFrom === null || draggedFrom === squareIndex) {
+  const handleDrop = useCallback(
+    async (squareIndex) => {
+      if (draggedFrom === null || draggedFrom === squareIndex) {
+        setDraggedPiece(null);
+        setDraggedFrom(null);
+        setValidMoves([]);
+        return;
+      }
+
+      if (!validMoves.includes(squareIndex)) {
+        setDraggedPiece(null);
+        setDraggedFrom(null);
+        setValidMoves([]);
+        return;
+      }
+
+      // Check if this is a promotion move (use client-side check for UX dialog)
+      if (needsPromotion(draggedPiece, squareIndex)) {
+        setPromotionData({ from: draggedFrom, to: squareIndex, piece: draggedPiece });
+        setDraggedPiece(null);
+        setDraggedFrom(null);
+        setValidMoves([]);
+        return;
+      }
+
+      // Build UCI string
+      const cols = 'abcdefgh';
+      const fromStr = cols[draggedFrom % 8] + (8 - Math.floor(draggedFrom / 8));
+      const toStr = cols[squareIndex % 8] + (8 - Math.floor(squareIndex / 8));
+      const uci = fromStr + toStr;
+
+      // Play sound optimistically
+      const isCapture = game.board[squareIndex] !== 0;
+      if (isCapture) {
+        playCaptureSound();
+      } else {
+        playMoveSound();
+      }
+
+      // Apply move optimistically before server responds
+      game.applyOptimisticMove(draggedFrom, squareIndex);
+
       setDraggedPiece(null);
       setDraggedFrom(null);
       setValidMoves([]);
-      return;
-    }
 
-    if (!validMoves.includes(squareIndex)) {
-      setDraggedPiece(null);
-      setDraggedFrom(null);
-      setValidMoves([]);
-      return;
-    }
+      game.submitMove(uci);
+    },
+    [draggedFrom, draggedPiece, validMoves, game],
+  );
 
-    // Check if this is a promotion move (use client-side check for UX dialog)
-    if (needsPromotion(draggedPiece, squareIndex)) {
-      setPromotionData({ from: draggedFrom, to: squareIndex, piece: draggedPiece });
-      setDraggedPiece(null);
-      setDraggedFrom(null);
-      setValidMoves([]);
-      return;
-    }
+  const handlePromotion = useCallback(
+    async (pieceType) => {
+      if (!promotionData) return;
 
-    // Build UCI string
-    const cols = 'abcdefgh';
-    const fromStr = cols[draggedFrom % 8] + (8 - Math.floor(draggedFrom / 8));
-    const toStr = cols[squareIndex % 8] + (8 - Math.floor(squareIndex / 8));
-    const uci = fromStr + toStr;
+      const { from, to } = promotionData;
+      const cols = 'abcdefgh';
+      const fromStr = cols[from % 8] + (8 - Math.floor(from / 8));
+      const toStr = cols[to % 8] + (8 - Math.floor(to / 8));
+      const promoChar =
+        {
+          [PIECE_TYPES.QUEEN]: 'q',
+          [PIECE_TYPES.ROOK]: 'r',
+          [PIECE_TYPES.BISHOP]: 'b',
+          [PIECE_TYPES.KNIGHT]: 'n',
+        }[pieceType] || 'q';
+      const uci = fromStr + toStr + promoChar;
 
-    // Play sound optimistically
-    const isCapture = game.board[squareIndex] !== 0;
-    if (isCapture) { playCaptureSound(); } else { playMoveSound(); }
+      playCaptureSound();
 
-    // Apply move optimistically before server responds
-    game.applyOptimisticMove(draggedFrom, squareIndex);
+      // Apply promotion optimistically
+      game.applyOptimisticMove(from, to);
 
-    setDraggedPiece(null);
-    setDraggedFrom(null);
-    setValidMoves([]);
+      setPromotionData(null);
 
-    game.submitMove(uci);
-  }, [draggedFrom, draggedPiece, validMoves, game]);
-
-  const handlePromotion = useCallback(async (pieceType) => {
-    if (!promotionData) return;
-
-    const { from, to } = promotionData;
-    const cols = 'abcdefgh';
-    const fromStr = cols[from % 8] + (8 - Math.floor(from / 8));
-    const toStr = cols[to % 8] + (8 - Math.floor(to / 8));
-    const promoChar = { [PIECE_TYPES.QUEEN]: 'q', [PIECE_TYPES.ROOK]: 'r', [PIECE_TYPES.BISHOP]: 'b', [PIECE_TYPES.KNIGHT]: 'n' }[pieceType] || 'q';
-    const uci = fromStr + toStr + promoChar;
-
-    playCaptureSound();
-
-    // Apply promotion optimistically
-    game.applyOptimisticMove(from, to);
-
-    setPromotionData(null);
-
-    game.submitMove(uci);
-  }, [promotionData, game]);
+      game.submitMove(uci);
+    },
+    [promotionData, game],
+  );
 
   const inviteCode = game.room?.inviteCode;
   const handleCopyInvite = useCallback(async () => {
@@ -138,7 +166,9 @@ function OnlineChessboard({ serverToken, roomId, onBackToList, onRoomGone }) {
         </div>
         <p className="waiting-hint">The game will start automatically when they join.</p>
         <div className="setup-actions">
-          <button className="setup-back" onClick={onBackToList}>Cancel</button>
+          <button className="setup-back" onClick={onBackToList}>
+            Cancel
+          </button>
         </div>
       </div>
     );
@@ -149,7 +179,9 @@ function OnlineChessboard({ serverToken, roomId, onBackToList, onRoomGone }) {
     return (
       <div className="online-error">
         <p>Error: {game.error}</p>
-        <button className="back-button" onClick={onBackToList}>Back to Games</button>
+        <button className="back-button" onClick={onBackToList}>
+          Back to Games
+        </button>
       </div>
     );
   }
@@ -164,9 +196,9 @@ function OnlineChessboard({ serverToken, roomId, onBackToList, onRoomGone }) {
   if (game.gameResult) {
     playNotifySound();
     if (game.gameResult === '1-0') {
-      gameStatus = 'Checkmate! White wins!';
+      gameStatus = 'White wins!';
     } else if (game.gameResult === '0-1') {
-      gameStatus = 'Checkmate! Black wins!';
+      gameStatus = 'Black wins!';
     } else {
       gameStatus = 'Draw!';
       statusColor = '#4CAF50';
@@ -187,7 +219,9 @@ function OnlineChessboard({ serverToken, roomId, onBackToList, onRoomGone }) {
     <>
       <div className="game-controls">
         <div className="engine-settings">
-          <button className="back-button" onClick={onBackToList}>Back to Games</button>
+          <button className="back-button" onClick={onBackToList}>
+            Back to Games
+          </button>
           {game.room && (
             <span className="online-info">
               {game.room.white || '?'} vs {game.room.black || '?'}
@@ -203,8 +237,65 @@ function OnlineChessboard({ serverToken, roomId, onBackToList, onRoomGone }) {
         </div>
       )}
 
+      {game.status === 'playing' && game.myColor && (
+        <div className="game-actions">
+          <button
+            onClick={() => {
+              if (confirm('Resign this game?'))
+                void gameAction(roomId, 'resign')
+                  .then(game.fetchRoom)
+                  .catch((e) => alert(e.message));
+            }}
+          >
+            Resign
+          </button>
+          {!game.room?.drawOffer && (
+            <button
+              onClick={() =>
+                void gameAction(roomId, 'draw', { action: 'offer' })
+                  .then(game.fetchRoom)
+                  .catch((e) => alert(e.message))
+              }
+            >
+              Offer draw
+            </button>
+          )}
+          {game.room?.drawOffer && game.room.drawOffer !== game.myColor && (
+            <>
+              <button
+                onClick={() =>
+                  void gameAction(roomId, 'draw', { action: 'accept' })
+                    .then(game.fetchRoom)
+                    .catch((e) => alert(e.message))
+                }
+              >
+                Accept draw
+              </button>
+              <button
+                onClick={() =>
+                  void gameAction(roomId, 'draw', { action: 'decline' })
+                    .then(game.fetchRoom)
+                    .catch((e) => alert(e.message))
+                }
+              >
+                Decline draw
+              </button>
+            </>
+          )}
+          {game.room?.drawOffer === game.myColor && (
+            <span>Draw offered. Waiting for your opponent.</span>
+          )}
+        </div>
+      )}
       <div className="chessboard">
-        {renderBoard(game.board, game.myColor, validMoves, handleDragStart, handleDragOver, handleDrop)}
+        {renderBoard(
+          game.board,
+          game.myColor,
+          validMoves,
+          handleDragStart,
+          handleDragOver,
+          handleDrop,
+        )}
       </div>
 
       {promotionData && (
@@ -254,23 +345,31 @@ function renderBoard(board, myColor, validMovesList, onDragStart, onDragOver, on
         <div
           key={`${x}-${y}`}
           className={squareClass}
+          data-square={`${'abcdefgh'[x]}${8 - y}`}
+          role="button"
+          tabIndex={0}
+          aria-label={`Square ${'abcdefgh'[x]}${8 - y}`}
+          onClick={() => (isValidMove ? onDrop(squareIndex) : onDragStart(squareIndex, piece))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              isValidMove ? onDrop(squareIndex) : onDragStart(squareIndex, piece);
+            }
+          }}
           onDragOver={onDragOver}
           onDrop={() => onDrop(squareIndex)}
         >
           {piece !== 0 && (
-            <Piece
-              type={piece}
-              onDragStart={() => onDragStart(squareIndex, piece)}
-            />
+            <Piece type={piece} onDragStart={() => onDragStart(squareIndex, piece)} />
           )}
-        </div>
+        </div>,
       );
     }
 
     boardElements.push(
       <div key={y} className="row">
         {row}
-      </div>
+      </div>,
     );
   }
 

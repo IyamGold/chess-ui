@@ -23,14 +23,14 @@ function GameSetup({ onStartLocal, onStartOnline, onJoinGame, onCancel, isServer
             className={`opponent-option ${opponent === 'local' ? 'selected' : ''}`}
             onClick={() => setOpponent('local')}
           >
-            Local
+            Computer (Stockfish)
           </button>
           <button
             className={`opponent-option ${opponent === 'online' ? 'selected' : ''}`}
             onClick={() => setOpponent('online')}
             disabled={!isServerConnected}
           >
-            Online
+            Friend online
           </button>
         </div>
         {!isServerConnected && (

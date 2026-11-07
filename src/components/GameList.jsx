@@ -3,22 +3,19 @@ import { listGames, deleteGame, clearAllGames, loadGame } from '../utils/gameMan
 import { GAME_SERVER_URL } from '../config';
 import './GameList.css';
 
-function GameList({ onNewGame, onResumeGame, onResumeOnline, serverToken }) {
-  const [games, setGames] = useState([]);
+function GameList({ onNewGame, onResumeGame, onResumeOnline, sessionReady }) {
+  const [games, setGames] = useState(listGames);
   const [onlineGames, setOnlineGames] = useState([]);
 
-  useEffect(() => {
-    setGames(listGames());
-  }, []);
 
   // Fetch active online games
   useEffect(() => {
-    if (!serverToken) return;
+    if (!sessionReady) return;
 
     async function fetchOnlineGames() {
       try {
         const resp = await fetch(`${GAME_SERVER_URL}/api/rooms`, {
-          headers: { 'Authorization': `Bearer ${serverToken}` },
+
         });
         if (!resp.ok) return;
         const data = await resp.json();
@@ -29,7 +26,7 @@ function GameList({ onNewGame, onResumeGame, onResumeOnline, serverToken }) {
     }
 
     fetchOnlineGames();
-  }, [serverToken]);
+  }, [sessionReady]);
 
   const handleDelete = (e, gameId) => {
     e.stopPropagation();

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { GAME_SERVER_URL, GAME_WS_URL } from '../config';
 import { playMoveSound, playCaptureSound } from '../sounds';
 
-export function useOnlineGame({ serverToken, roomId, onRoomGone }) {
+export function useOnlineGame({ sessionReady, roomId, onRoomGone }) {
   const [board, setBoard] = useState(null);
   const [currentTurn, setCurrentTurn] = useState(null);
   const [myColor, setMyColor] = useState(null);
@@ -22,16 +22,16 @@ export function useOnlineGame({ serverToken, roomId, onRoomGone }) {
 
   const headers = useCallback(() => ({
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${serverToken}`,
-  }), [serverToken]);
+
+  }), [sessionReady]);
 
   // Fetch room state from server
   const fetchRoom = useCallback(async () => {
-    if (!serverToken || !roomId) return;
+    if (!sessionReady || !roomId) return;
 
     try {
       const resp = await fetch(`${GAME_SERVER_URL}/api/rooms/${roomId}`, {
-        headers: { 'Authorization': `Bearer ${serverToken}` },
+
       });
 
       if (!resp.ok) {
@@ -70,16 +70,16 @@ export function useOnlineGame({ serverToken, roomId, onRoomGone }) {
       setError('Network error');
       setStatus('error');
     }
-  }, [serverToken, roomId]);
+  }, [sessionReady, roomId]);
 
   // Initial fetch
   useEffect(() => {
-    fetchRoom();
+    void Promise.resolve().then(fetchRoom);
   }, [fetchRoom]);
 
   // WebSocket connection — with auto-reconnect (backoff) and resync on reopen.
   useEffect(() => {
-    if (!serverToken || !roomId) return;
+    if (!sessionReady || !roomId) return;
 
     let unmounted = false;
     let attempt = 0;
@@ -91,6 +91,10 @@ export function useOnlineGame({ serverToken, roomId, onRoomGone }) {
 
       switch (msg.event) {
         case 'joined':
+          break;
+
+        case 'drawOffer':
+          fetchRoom();
           break;
 
         case 'join':
@@ -135,7 +139,7 @@ export function useOnlineGame({ serverToken, roomId, onRoomGone }) {
       if (unmounted) return;
       reconnectTimer = null;
 
-      const ws = new WebSocket(`${GAME_WS_URL}/api/rooms/${roomId}/ws`, [`token.${serverToken}`]);
+      const ws = new WebSocket(`${GAME_WS_URL}/api/rooms/${roomId}/ws`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -191,11 +195,11 @@ export function useOnlineGame({ serverToken, roomId, onRoomGone }) {
         wsRef.current = null;
       }
     };
-  }, [serverToken, roomId, fetchRoom]);
+  }, [sessionReady, roomId, fetchRoom]);
 
   // Submit a move via REST
   const submitMove = useCallback(async (uciStr) => {
-    if (!serverToken || !roomId) return { ok: false };
+    if (!sessionReady || !roomId) return { ok: false };
 
     try {
       const resp = await fetch(`${GAME_SERVER_URL}/api/rooms/${roomId}/move`, {
@@ -208,6 +212,7 @@ export function useOnlineGame({ serverToken, roomId, onRoomGone }) {
 
       if (!resp.ok) {
         console.error('Move rejected:', data.error);
+        await fetchRoom(); // Roll back the optimistic board after a rejected move.
         return { ok: false, error: data.error };
       }
 
@@ -225,9 +230,10 @@ export function useOnlineGame({ serverToken, roomId, onRoomGone }) {
       return { ok: true, data };
     } catch (err) {
       console.error('Submit move error:', err);
+      await fetchRoom();
       return { ok: false, error: 'Network error' };
     }
-  }, [serverToken, roomId, headers, fetchRoom]);
+  }, [sessionReady, roomId, headers, fetchRoom]);
 
   // Apply move optimistically on the client before server responds
   const applyOptimisticMove = useCallback((fromIndex, toIndex) => {

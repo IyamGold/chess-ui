@@ -43,3 +43,9 @@ coverage.json
 
 # Live SQLite database — never tracked (contains user data)
 server/chess.db
+
+# Local credentials and synthetic test databases
+.env.*
+!.env.example
+server/test-*.db
+server/reaper-test.db

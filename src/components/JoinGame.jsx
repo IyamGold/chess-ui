@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { GAME_SERVER_URL } from '../config';
 
-function JoinGame({ serverToken, onJoined, onCancel }) {
+function JoinGame({ sessionReady, onJoined, onCancel }) {
   const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ function JoinGame({ serverToken, onJoined, onCancel }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${serverToken}`,
+
         },
         body: JSON.stringify({ inviteCode: code }),
       });
@@ -35,7 +35,7 @@ function JoinGame({ serverToken, onJoined, onCancel }) {
       }
 
       onJoined(data.roomId, data.color);
-    } catch (err) {
+    } catch {
       setError('Network error — is the server running?');
       setLoading(false);
     }

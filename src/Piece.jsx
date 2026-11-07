@@ -3,10 +3,8 @@ import './Piece.css';
 function Piece({ type, onDragStart }) {
   const pieceType = Math.abs(type);
   const isWhite = type > 0;
-  const fillColor = isWhite ? '#ffffff' : '#000000';
-  const strokeColor = isWhite ? '#000000' : '#ffffff';
 
-  const handleDragStart = (e) => {
+  const handleDragStart = () => {
     if (onDragStart) {
       onDragStart();
     }
