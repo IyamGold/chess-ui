@@ -26,7 +26,15 @@ Set these **non-secret** variables:
 | `CHESS_DB_PATH`         | `/data/chess.db`, with a persistent Railway volume at `/data` |
 | `PORT`                  | Railway supplies this                                         |
 
-Build: `npm ci --include=dev && npm --prefix server ci && npm run build`.
+Railway build command: `npm run build`.
+`nixpacks.toml` installs frontend and backend dependencies in the **install** phase,
+including development tools for Vite and native SQLite lifecycle scripts for the
+backend. Do not put `npm ci` in the build command: Nixpacks mounts
+`node_modules/.cache` in that phase, and npm tries to remove it when reinstalling.
+An `EBUSY` / `rmdir .../node_modules/.cache` error can surface as exit code 240.
+
+For a manual build outside Nixpacks: `npm ci --include=dev`, then
+`npm --prefix server ci --omit=dev --ignore-scripts=false`, then `npm run build`.
 Start: `npm --prefix server start`. Bind is `0.0.0.0` only for the explicitly
 approved hosted mode. Keep one replica for its SQLite database and in-memory
 game event connections. Restarting may interrupt an in-flight sign-in; start it
@@ -71,6 +79,10 @@ must copy the **actual DNS CNAME/verification targets Railway provides** to the
 DNS provider and wait for TLS issuance. No DNS record target is invented in this
 repository. Login web stays at `demo.withlogin.com` on Vercel, with its API/OIDC
 rewrites pointing at the shared Login Railway service.
+
+In Railway’s service settings, remove the old custom build command containing
+`npm ci`, or change it to `npm run build`. Keep the repository root as the service
+root so Railway can find both `railway.json` and `nixpacks.toml`.
 
 No service, DNS record or certificate is provisioned by these files. Hosting
 access and Railway's assigned target are required to finish the public launch.
