@@ -1,0 +1,14 @@
+[variables]
+NIXPACKS_NODE_VERSION = "22"
+
+[phases.setup]
+# Preserve Node's default setup; provide tools if SQLite must compile from source.
+nixPkgs = ["...", "python3", "gcc", "gnumake"]
+
+[phases.install]
+# Vite is a devDependency even when Railway supplies NODE_ENV=production.
+# Install only here: build-phase node_modules/.cache is a mounted directory.
+cmds = ["npm ci --include=dev", "npm --prefix server ci --omit=dev --ignore-scripts=false"]
+
+[phases.build]
+cmds = ["npm run build"]
