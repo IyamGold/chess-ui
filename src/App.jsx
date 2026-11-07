@@ -7,10 +7,9 @@ import GameList from './components/GameList';
 import GameSetup from './components/GameSetup';
 import JoinGame from './components/JoinGame';
 import OnlineChessboard from './components/OnlineChessboard';
-import { createGame, saveGame, loadGame, markGamePublished, setCurrentUser } from './utils/gameManager';
-import { usePasskeyAuth } from './hooks/usePasskeyAuth';
-import { usePasskeyPublish } from './hooks/usePasskeyPublish';
-import { useServerAuth } from './hooks/useServerAuth';
+import { createGame, saveGame, loadGame, setCurrentUser } from './utils/gameManager';
+import { useLogin } from './login/context';
+import AccountPanel from './login/AccountPanel';
 import { GAME_SERVER_URL } from './config';
 
 function App() {
@@ -24,22 +23,10 @@ function App() {
 
   const [view, setView] = useState('list');
   const [activeGame, setActiveGame] = useState(null);
-  const [publishStatus, setPublishStatus] = useState(null);
   const [notice, setNotice] = useState(null);
 
-  const passkey = usePasskeyAuth();
-  const serverAuth = useServerAuth({
-    isAuthenticated: passkey.isAuthenticated,
-    account: passkey.account,
-    username: passkey.username,
-    credentialId: passkey.credentialId,
-  });
-  const { publishGame: passkeyPublish } = usePasskeyPublish({
-    account: passkey.account,
-    credentialId: passkey.credentialId,
-    rawId: passkey.rawId,
-  });
-
+  const passkey = useLogin();
+  const sessionReady = passkey.isAuthenticated;
   // Scope game storage to the authenticated user — must be synchronous
   // so that GameList reads the correct localStorage key on first render.
   // (useEffect would run after child effects, causing a race condition.)
@@ -50,11 +37,14 @@ function App() {
     setCurrentUser(currentAccount);
   }
 
-  const handleLogout = () => {
-    passkey.logout();
-    serverAuth.logout();
+  const handleLogout = async () => {
+    try {
+      await passkey.logout();
+    } catch {
+      setNotice('Could not sign out. Try again.');
+      return;
+    }
     setActiveGame(null);
-    setPublishStatus(null);
     setView('list');
     if (onlineRoomId) navigate('/');
   };
@@ -73,14 +63,13 @@ function App() {
 
   // Online game start
   const handleStartOnline = async (color) => {
-    if (!serverAuth.serverToken) return;
+    if (!sessionReady) return;
 
     try {
       const resp = await fetch(`${GAME_SERVER_URL}/api/rooms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${serverAuth.serverToken}`,
         },
         body: JSON.stringify({ color, opponent: 'human' }),
       });
@@ -117,7 +106,12 @@ function App() {
 
   const handleSave = (state) => {
     if (!activeGame) return;
-    saveGame({ ...state, id: activeGame.id, engineColor: activeGame.engineColor, createdAt: activeGame.createdAt });
+    saveGame({
+      ...state,
+      id: activeGame.id,
+      engineColor: activeGame.engineColor,
+      createdAt: activeGame.createdAt,
+    });
   };
 
   const handleGameEnd = async (result) => {
@@ -128,28 +122,11 @@ function App() {
       latestState.result = result;
       saveGame(latestState);
     }
-    setActiveGame(prev => ({ ...prev, result }));
-
-    const finishedGame = latestState || { ...activeGame, result };
-
-    setPublishStatus('pending');
-    const publishResult = await passkeyPublish(finishedGame);
-
-    if (publishResult.published) {
-      setPublishStatus('success');
-      markGamePublished(finishedGame.id, publishResult.txHash);
-      setTimeout(() => setPublishStatus(null), 4000);
-    } else if (['no-contract-address', 'passkey-not-authenticated'].includes(publishResult.reason)) {
-      setPublishStatus(null);
-    } else {
-      setPublishStatus('error');
-      setTimeout(() => setPublishStatus(null), 5000);
-    }
+    setActiveGame((prev) => ({ ...prev, result }));
   };
 
   const handleBackToList = () => {
     setActiveGame(null);
-    setPublishStatus(null);
     setView('list');
     if (onlineRoomId) navigate('/');
   };
@@ -165,6 +142,12 @@ function App() {
   };
 
   // Unauthenticated: route to /login, preserving where they tried to go.
+  if (passkey.loading)
+    return (
+      <main>
+        <p>Checking your game session…</p>
+      </main>
+    );
   if (!passkey.isAuthenticated) {
     const returnTo = location.pathname + location.search;
     return <Navigate to={`/login?return_to=${encodeURIComponent(returnTo)}`} replace />;
@@ -178,25 +161,21 @@ function App() {
           <span className="passkey-badge" title={passkey.account}>
             {passkey.username || passkey.account?.slice(0, 6) + '...' + passkey.account?.slice(-4)}
           </span>
-          {serverAuth.isConnected && <span className="server-badge">Online</span>}
-          <button className="passkey-logout" onClick={handleLogout}>Logout</button>
+          {sessionReady && <span className="server-badge">Online</span>}
+          <button className="passkey-logout" onClick={handleLogout}>
+            Logout
+          </button>
         </div>
       </header>
 
-      {publishStatus && (
-        <div className={`publish-toast ${publishStatus}`}>
-          {publishStatus === 'pending' && 'Publishing game on-chain...'}
-          {publishStatus === 'success' && 'Game published on-chain!'}
-          {publishStatus === 'error' && 'Failed to publish on-chain'}
-        </div>
-      )}
+      <AccountPanel />
 
       {notice && <div className="publish-toast error">{notice}</div>}
 
       {onlineRoomId ? (
         <OnlineChessboard
           key={onlineRoomId}
-          serverToken={serverAuth.serverToken}
+          sessionReady={sessionReady}
           roomId={onlineRoomId}
           onBackToList={handleBackToList}
           onRoomGone={handleRoomGone}
@@ -208,7 +187,7 @@ function App() {
               onNewGame={handleNewGame}
               onResumeGame={handleResumeGame}
               onResumeOnline={(roomId) => navigate(`/game/${roomId}`)}
-              serverToken={serverAuth.serverToken}
+              sessionReady={sessionReady}
             />
           )}
 
@@ -218,13 +197,13 @@ function App() {
               onStartOnline={handleStartOnline}
               onJoinGame={handleJoinGame}
               onCancel={() => setView('list')}
-              isServerConnected={serverAuth.isConnected}
+              isServerConnected={sessionReady}
             />
           )}
 
           {view === 'join' && (
             <JoinGame
-              serverToken={serverAuth.serverToken}
+              sessionReady={sessionReady}
               onJoined={handleJoined}
               onCancel={() => setView('setup')}
             />
