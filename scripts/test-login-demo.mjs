@@ -1,5 +1,5 @@
 // Synthetic users and virtual passkeys only. Start Login and Chess before running.
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import assert from 'node:assert/strict';
 const browser = await chromium.launch({
   executablePath: process.env.CHESS_CHROMIUM_EXECUTABLE,
@@ -7,8 +7,8 @@ const browser = await chromium.launch({
   args: ['--no-sandbox'],
 });
 const base = 'http://localhost:5190';
-async function signup(label) {
-  const context = await browser.newContext(),
+async function signup(label, contextOptions = {}) {
+  const context = await browser.newContext(contextOptions),
     page = await context.newPage();
   await page.addInitScript(() => {
     PublicKeyCredential.isConditionalMediationAvailable = async () => false;
@@ -43,9 +43,14 @@ async function signup(label) {
 const post = (page, path, data) =>
   page.request.post(base + path, { headers: { Origin: base }, data });
 async function move(page, from, to) {
-  await page.locator(`[data-square="${from}"]`).click();
-  await page.locator(`[data-square="${to}"].valid-move`).waitFor();
-  await page.locator(`[data-square="${to}"]`).click();
+  const source = page.locator(`[data-square="${from}"]`);
+  const target = page.locator(`[data-square="${to}"]`);
+  await expect(source).toHaveAttribute('aria-disabled', 'false');
+  await source.click();
+  await expect(source).toHaveAttribute('aria-pressed', 'true');
+  await expect(target).toHaveClass(/valid-move/);
+  await target.click();
+  await expect(source).toHaveAttribute('aria-pressed', 'false');
 }
 try {
   // Regression: a static host's SPA fallback is not a working sign-in backend.
@@ -72,7 +77,7 @@ try {
   await offlinePage.getByRole('link', { name: 'Continue with Login', exact: true }).waitFor();
   await offline.close();
   const a = await signup('white'),
-    b = await signup('black');
+    b = await signup('black', { hasTouch: true });
   const profile = await (await a.request.get(base + '/api/login/session')).json();
   assert.ok(profile.username);
   assert.ok(!('verified_human' in profile));
@@ -90,8 +95,65 @@ try {
   const room = await create.json();
   assert.equal((await post(b, '/api/rooms/join', { inviteCode: room.inviteCode })).status(), 200);
   await Promise.all([a.goto(base + `/game/${room.roomId}`), b.goto(base + `/game/${room.roomId}`)]);
-  await move(a, 'e2', 'e4');
-  await move(b, 'e7', 'e5');
+  const square = (page, name) => page.locator(`[data-square="${name}"]`);
+  // A single click selects, another own piece switches, and a repeat/empty click clears.
+  await square(a, 'e7').click();
+  await expect(a.locator('.square.valid-move')).toHaveCount(0);
+  await square(a, 'e2').click();
+  await expect(square(a, 'e2')).toHaveAttribute('aria-pressed', 'true');
+  await expect(square(a, 'e3')).toHaveClass(/valid-move/);
+  await expect(square(a, 'e4')).toHaveClass(/valid-move/);
+  await square(a, 'g1').click();
+  await expect(square(a, 'g1')).toHaveAttribute('aria-pressed', 'true');
+  await expect(square(a, 'f3')).toHaveClass(/valid-move/);
+  await expect(square(a, 'e4')).not.toHaveClass(/valid-move/);
+  await square(a, 'g1').click();
+  await expect(a.locator('.square.valid-move')).toHaveCount(0);
+  await square(a, 'e2').click();
+  await square(a, 'e5').click();
+  await expect(a.locator('.square.valid-move')).toHaveCount(0);
+
+  await square(a, 'e2').click();
+  assert.ok(
+    await a
+      .locator('.chessboard img')
+      .evaluateAll((images) => images.every((image) => !image.draggable)),
+  );
+  await a.evaluate(() => {
+    window.__boardDragStarts = 0;
+    document.addEventListener('dragstart', () => window.__boardDragStarts++);
+  });
+  const sourceBox = await square(a, 'e2').boundingBox();
+  const targetBox = await square(a, 'e4').boundingBox();
+  await a.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+  await a.mouse.down();
+  await a.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, {
+    steps: 8,
+  });
+  await a.mouse.up();
+  assert.equal(await a.evaluate(() => window.__boardDragStarts), 0);
+  assert.equal(
+    (await (await a.request.get(base + `/api/rooms/${room.roomId}`)).json()).moveHistory.length,
+    0,
+  );
+  await expect(square(a, 'e2').locator('img')).toHaveAttribute('alt', 'White Pawn');
+  await square(a, 'e2').click(); // Clear before checking native keyboard activation.
+  await square(a, 'e2').focus();
+  await a.keyboard.press('Space');
+  await expect(square(a, 'e4')).toHaveClass(/valid-move/);
+  await square(a, 'e4').focus();
+  await a.keyboard.press('Enter');
+  await expect(square(a, 'e4').locator('img')).toHaveAttribute('alt', 'White Pawn');
+  await square(a, 'd2').click({ force: true }); // Explicitly attempt a disabled turn; it must be ignored.
+  await expect(a.locator('.square.valid-move')).toHaveCount(0);
+
+  // Black's flipped board also moves with two taps, without a long press.
+  await expect(square(b, 'e7')).toHaveAttribute('aria-disabled', 'false');
+  await square(b, 'e7').tap();
+  await expect(square(b, 'e7')).toHaveAttribute('aria-pressed', 'true');
+  await expect(square(b, 'e5')).toHaveClass(/valid-move/);
+  await square(b, 'e5').tap();
+  await expect(square(b, 'e5').locator('img')).toHaveAttribute('alt', 'Black Pawn');
   await a.reload(); // Resume an active game with the same HttpOnly session.
   await a.locator('[data-square="f1"]').waitFor();
   await move(a, 'f1', 'c4');
@@ -130,11 +192,62 @@ try {
     await new Promise((r) => setTimeout(r, 200));
   }
   assert.ok(count >= 2, 'Stockfish must reply');
+  // Reach promotion using legal API moves, then exercise the two-click UI and choice.
+  const promotion = await (
+    await post(a, '/api/rooms', { color: 'white', opponent: 'human' })
+  ).json();
+  await post(b, '/api/rooms/join', { inviteCode: promotion.inviteCode });
+  for (const [player, uci] of [
+    [a, 'a2a4'],
+    [b, 'h7h5'],
+    [a, 'a4a5'],
+    [b, 'h5h4'],
+    [a, 'a5a6'],
+    [b, 'h4h3'],
+    [a, 'a6b7'],
+    [b, 'h3g2'],
+  ]) {
+    assert.equal(
+      (await post(player, `/api/rooms/${promotion.roomId}/move`, { move: uci })).status(),
+      200,
+    );
+  }
+  await a.goto(base + `/game/${promotion.roomId}`);
+  await square(a, 'b7').click();
+  await expect(square(a, 'a8')).toHaveClass(/valid-move/);
+  await square(a, 'a8').click();
+  await a.getByRole('button', { name: 'Promote to Knight', exact: true }).waitFor();
+  assert.equal(
+    (await (await a.request.get(base + `/api/rooms/${promotion.roomId}`)).json()).moveHistory
+      .length,
+    8,
+  );
+  await a.getByRole('button', { name: 'Promote to Knight', exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await (await a.request.get(base + `/api/rooms/${promotion.roomId}`)).json()
+        ).board[0],
+    )
+    .toBe(3);
+
+  // The browser-local Stockfish board uses the same two-click interaction.
+  await a.goto(base);
+  await a.getByRole('button', { name: '+ New Game', exact: true }).click();
+  await a.getByRole('button', { name: 'Start Game', exact: true }).click();
+  await square(a, 'e2').click();
+  await expect(square(a, 'e2')).toHaveAttribute('aria-pressed', 'true');
+  await expect(square(a, 'e4')).toHaveClass(/valid-move/);
+  await square(a, 'e4').click();
+  await expect(square(a, 'e4').locator('img')).toHaveAttribute('alt', 'White Pawn');
+  await expect(square(a, 'e2')).toHaveAttribute('aria-pressed', 'false');
+
   await post(a, '/api/login/logout', {});
   assert.equal((await a.request.get(base + '/api/rooms')).status(), 401);
   assert.ok(await b.evaluate(() => !localStorage.getItem('server_auth_token')));
   console.log(
-    'PASS: API-misrouting recovery, Login/passkeys, optional KYC, cookie auth, Origin rejection, two-player UI checkmate, reload, draw agreement, Stockfish and logout.',
+    'PASS: API-misrouting recovery, Login/passkeys, optional KYC, cookie auth, Origin rejection, two-click mouse/touch/keyboard moves, no native drag, promotion, local board, checkmate, reload, draw agreement, Stockfish and logout.',
   );
 } finally {
   await browser.close();

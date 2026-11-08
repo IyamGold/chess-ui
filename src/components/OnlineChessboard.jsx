@@ -18,86 +18,55 @@ async function gameAction(roomId, path, body = {}) {
 function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
   const game = useOnlineGame({ sessionReady, roomId, onRoomGone });
 
-  const [draggedPiece, setDraggedPiece] = useState(null);
-  const [draggedFrom, setDraggedFrom] = useState(null);
-  const [validMoves, setValidMoves] = useState([]);
+  const [selection, setSelection] = useState(null);
   const [promotionData, setPromotionData] = useState(null); // { from, to, piece }
   const [copied, setCopied] = useState(false);
 
   const isMyTurn = game.myColor === game.currentTurn;
+  const canInteract = game.status === 'playing' && isMyTurn && !promotionData;
+  // A server update invalidates a selection made on the previous board.
+  const selectedFrom = canInteract && selection?.board === game.board ? selection.from : null;
+  const selectedPiece = selectedFrom === null ? null : selection.piece;
+  const validMoves = selectedFrom === null ? [] : game.getValidMovesForSquare(selectedFrom);
 
-  const handleDragStart = useCallback(
-    (squareIndex, piece) => {
-      // Only allow dragging own pieces on own turn
-      if (!isMyTurn) return;
-      const isWhite = piece > 0;
-      if ((game.myColor === 'white' && !isWhite) || (game.myColor === 'black' && isWhite)) return;
+  const handleMove = (squareIndex) => {
+    if (!canInteract || selectedFrom === null || !validMoves.includes(squareIndex)) return;
 
-      setDraggedPiece(piece);
-      setDraggedFrom(squareIndex);
-      setValidMoves(game.getValidMovesForSquare(squareIndex));
-    },
-    [isMyTurn, game],
-  );
+    if (needsPromotion(selectedPiece, squareIndex)) {
+      setPromotionData({ from: selectedFrom, to: squareIndex, piece: selectedPiece });
+      setSelection(null);
+      return;
+    }
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
+    const cols = 'abcdefgh';
+    const fromStr = cols[selectedFrom % 8] + (8 - Math.floor(selectedFrom / 8));
+    const toStr = cols[squareIndex % 8] + (8 - Math.floor(squareIndex / 8));
+    if (game.board[squareIndex] !== 0) playCaptureSound();
+    else playMoveSound();
+
+    game.applyOptimisticMove(selectedFrom, squareIndex);
+    setSelection(null);
+    void game.submitMove(fromStr + toStr);
   };
 
-  const handleDrop = useCallback(
-    async (squareIndex) => {
-      if (draggedFrom === null || draggedFrom === squareIndex) {
-        setDraggedPiece(null);
-        setDraggedFrom(null);
-        setValidMoves([]);
-        return;
-      }
-
-      if (!validMoves.includes(squareIndex)) {
-        setDraggedPiece(null);
-        setDraggedFrom(null);
-        setValidMoves([]);
-        return;
-      }
-
-      // Check if this is a promotion move (use client-side check for UX dialog)
-      if (needsPromotion(draggedPiece, squareIndex)) {
-        setPromotionData({ from: draggedFrom, to: squareIndex, piece: draggedPiece });
-        setDraggedPiece(null);
-        setDraggedFrom(null);
-        setValidMoves([]);
-        return;
-      }
-
-      // Build UCI string
-      const cols = 'abcdefgh';
-      const fromStr = cols[draggedFrom % 8] + (8 - Math.floor(draggedFrom / 8));
-      const toStr = cols[squareIndex % 8] + (8 - Math.floor(squareIndex / 8));
-      const uci = fromStr + toStr;
-
-      // Play sound optimistically
-      const isCapture = game.board[squareIndex] !== 0;
-      if (isCapture) {
-        playCaptureSound();
-      } else {
-        playMoveSound();
-      }
-
-      // Apply move optimistically before server responds
-      game.applyOptimisticMove(draggedFrom, squareIndex);
-
-      setDraggedPiece(null);
-      setDraggedFrom(null);
-      setValidMoves([]);
-
-      game.submitMove(uci);
-    },
-    [draggedFrom, draggedPiece, validMoves, game],
-  );
+  const handleSquareClick = (squareIndex) => {
+    if (!canInteract) return;
+    if (validMoves.includes(squareIndex)) {
+      handleMove(squareIndex);
+      return;
+    }
+    const piece = game.board[squareIndex];
+    const ownPiece = piece !== 0 && (piece > 0 ? 'white' : 'black') === game.myColor;
+    if (squareIndex !== selectedFrom && ownPiece) {
+      setSelection({ from: squareIndex, piece, board: game.board });
+    } else {
+      setSelection(null);
+    }
+  };
 
   const handlePromotion = useCallback(
     async (pieceType) => {
-      if (!promotionData) return;
+      if (!promotionData || game.status !== 'playing' || !isMyTurn) return;
 
       const { from, to } = promotionData;
       const cols = 'abcdefgh';
@@ -121,7 +90,7 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
 
       game.submitMove(uci);
     },
-    [promotionData, game],
+    [promotionData, game, isMyTurn],
   );
 
   const inviteCode = game.room?.inviteCode;
@@ -287,35 +256,48 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
           )}
         </div>
       )}
-      <div className="chessboard">
+      <p className="board-instructions">Click a piece, then click a highlighted square to move.</p>
+      <div className="chessboard" role="group" aria-label="Chess board">
         {renderBoard(
           game.board,
           game.myColor,
           validMoves,
-          handleDragStart,
-          handleDragOver,
-          handleDrop,
+          selectedFrom,
+          canInteract,
+          handleSquareClick,
         )}
       </div>
 
-      {promotionData && (
+      {promotionData && game.status === 'playing' && (
         <div className="promotion-overlay">
           <div className="promotion-dialog">
             <h3>Promote Pawn</h3>
             <div className="promotion-choices">
-              <button onClick={() => handlePromotion(PIECE_TYPES.QUEEN)}>
+              <button
+                aria-label="Promote to Queen"
+                onClick={() => handlePromotion(PIECE_TYPES.QUEEN)}
+              >
                 <Piece type={promoPieceIsWhite ? PIECE_TYPES.QUEEN : -PIECE_TYPES.QUEEN} />
                 <span>Queen</span>
               </button>
-              <button onClick={() => handlePromotion(PIECE_TYPES.ROOK)}>
+              <button
+                aria-label="Promote to Rook"
+                onClick={() => handlePromotion(PIECE_TYPES.ROOK)}
+              >
                 <Piece type={promoPieceIsWhite ? PIECE_TYPES.ROOK : -PIECE_TYPES.ROOK} />
                 <span>Rook</span>
               </button>
-              <button onClick={() => handlePromotion(PIECE_TYPES.BISHOP)}>
+              <button
+                aria-label="Promote to Bishop"
+                onClick={() => handlePromotion(PIECE_TYPES.BISHOP)}
+              >
                 <Piece type={promoPieceIsWhite ? PIECE_TYPES.BISHOP : -PIECE_TYPES.BISHOP} />
                 <span>Bishop</span>
               </button>
-              <button onClick={() => handlePromotion(PIECE_TYPES.KNIGHT)}>
+              <button
+                aria-label="Promote to Knight"
+                onClick={() => handlePromotion(PIECE_TYPES.KNIGHT)}
+              >
                 <Piece type={promoPieceIsWhite ? PIECE_TYPES.KNIGHT : -PIECE_TYPES.KNIGHT} />
                 <span>Knight</span>
               </button>
@@ -327,7 +309,7 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
   );
 }
 
-function renderBoard(board, myColor, validMovesList, onDragStart, onDragOver, onDrop) {
+function renderBoard(board, myColor, validMovesList, selectedFrom, canInteract, onSquareClick) {
   const boardElements = [];
   const rows = myColor === 'black' ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
   const colOrder = myColor === 'black' ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
@@ -339,30 +321,23 @@ function renderBoard(board, myColor, validMovesList, onDragStart, onDragOver, on
       const piece = board[squareIndex];
       const isLight = (x + y) % 2 === 0;
       const isValidMove = validMovesList.includes(squareIndex);
-      const squareClass = `square ${isLight ? 'light' : 'dark'}${isValidMove ? ' valid-move' : ''}`;
+      const squareClass = `square ${isLight ? 'light' : 'dark'}${isValidMove ? ' valid-move' : ''}${
+        selectedFrom === squareIndex ? ' selected' : ''
+      }`;
 
       row.push(
-        <div
+        <button
           key={`${x}-${y}`}
+          type="button"
           className={squareClass}
           data-square={`${'abcdefgh'[x]}${8 - y}`}
-          role="button"
-          tabIndex={0}
           aria-label={`Square ${'abcdefgh'[x]}${8 - y}`}
-          onClick={() => (isValidMove ? onDrop(squareIndex) : onDragStart(squareIndex, piece))}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              isValidMove ? onDrop(squareIndex) : onDragStart(squareIndex, piece);
-            }
-          }}
-          onDragOver={onDragOver}
-          onDrop={() => onDrop(squareIndex)}
+          aria-pressed={selectedFrom === squareIndex}
+          aria-disabled={!canInteract}
+          onClick={() => onSquareClick(squareIndex)}
         >
-          {piece !== 0 && (
-            <Piece type={piece} onDragStart={() => onDragStart(squareIndex, piece)} />
-          )}
-        </div>,
+          {piece !== 0 && <Piece type={piece} />}
+        </button>,
       );
     }
 

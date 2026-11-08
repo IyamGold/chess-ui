@@ -10,8 +10,8 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
   const s = initialState || {};
 
   const [board, setBoard] = useState(() => s.board || INITIAL_BOARD);
-  const [draggedPiece, setDraggedPiece] = useState(null);
-  const [draggedFrom, setDraggedFrom] = useState(null);
+  const [selectedPiece, setSelectedPiece] = useState(null);
+  const [selectedFrom, setSelectedFrom] = useState(null);
   const [enPassantTarget, setEnPassantTarget] = useState(() => s.enPassantTarget ?? null);
   const [promotionSquare, setPromotionSquare] = useState(null);
   const [movedPieces, setMovedPieces] = useState(() =>
@@ -112,9 +112,9 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
     }
   }, [board, halfMoveClock, positionHistory, getGameResult, onGameEnd]);
 
-  const handleDragStart = (squareIndex, piece) => {
-    setDraggedPiece(piece);
-    setDraggedFrom(squareIndex);
+  const handleSelectPiece = (squareIndex, piece) => {
+    setSelectedPiece(piece);
+    setSelectedFrom(squareIndex);
 
     const pieceType = Math.abs(piece);
     const isWhite = piece > 0;
@@ -169,10 +169,6 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
     setValidMoves(moves);
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
   const handlePromotion = (pieceType) => {
     if (promotionSquare === null) return;
 
@@ -214,20 +210,20 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
     }
   };
 
-  const handleDrop = (squareIndex) => {
-    if (draggedFrom === null || draggedFrom === squareIndex) {
+  const handleMove = (squareIndex) => {
+    if (selectedFrom === null || selectedFrom === squareIndex) {
       setValidMoves([]);
       return;
     }
 
-    const pieceType = Math.abs(draggedPiece);
-    const isWhite = draggedPiece > 0;
+    const pieceType = Math.abs(selectedPiece);
+    const isWhite = selectedPiece > 0;
     const pieceColor = isWhite ? 'white' : 'black';
 
     // Check if game is over
     if (gameEndedRef.current) {
-      setDraggedPiece(null);
-      setDraggedFrom(null);
+      setSelectedPiece(null);
+      setSelectedFrom(null);
       setValidMoves([]);
       return;
     }
@@ -239,46 +235,46 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
     const gameOverRep = repCount >= 3;
 
     if (gameOver || gameOverRep) {
-      setDraggedPiece(null);
-      setDraggedFrom(null);
+      setSelectedPiece(null);
+      setSelectedFrom(null);
       setValidMoves([]);
       return;
     }
 
     if (pieceColor !== currentTurn) {
-      setDraggedPiece(null);
-      setDraggedFrom(null);
+      setSelectedPiece(null);
+      setSelectedFrom(null);
       setValidMoves([]);
       return;
     }
 
     // Validate moves
-    if (pieceType === PIECE_TYPES.PAWN && !isValidPawnMove(board, draggedFrom, squareIndex, enPassantTarget)) {
-      setDraggedPiece(null); setDraggedFrom(null); setValidMoves([]); return;
+    if (pieceType === PIECE_TYPES.PAWN && !isValidPawnMove(board, selectedFrom, squareIndex, enPassantTarget)) {
+      setSelectedPiece(null); setSelectedFrom(null); setValidMoves([]); return;
     }
-    if (pieceType === PIECE_TYPES.ROOK && !isValidRookMove(board, draggedFrom, squareIndex)) {
-      setDraggedPiece(null); setDraggedFrom(null); setValidMoves([]); return;
+    if (pieceType === PIECE_TYPES.ROOK && !isValidRookMove(board, selectedFrom, squareIndex)) {
+      setSelectedPiece(null); setSelectedFrom(null); setValidMoves([]); return;
     }
-    if (pieceType === PIECE_TYPES.KNIGHT && !isValidKnightMove(board, draggedFrom, squareIndex)) {
-      setDraggedPiece(null); setDraggedFrom(null); setValidMoves([]); return;
+    if (pieceType === PIECE_TYPES.KNIGHT && !isValidKnightMove(board, selectedFrom, squareIndex)) {
+      setSelectedPiece(null); setSelectedFrom(null); setValidMoves([]); return;
     }
-    if (pieceType === PIECE_TYPES.BISHOP && !isValidBishopMove(board, draggedFrom, squareIndex)) {
-      setDraggedPiece(null); setDraggedFrom(null); setValidMoves([]); return;
+    if (pieceType === PIECE_TYPES.BISHOP && !isValidBishopMove(board, selectedFrom, squareIndex)) {
+      setSelectedPiece(null); setSelectedFrom(null); setValidMoves([]); return;
     }
-    if (pieceType === PIECE_TYPES.QUEEN && !isValidQueenMove(board, draggedFrom, squareIndex)) {
-      setDraggedPiece(null); setDraggedFrom(null); setValidMoves([]); return;
+    if (pieceType === PIECE_TYPES.QUEEN && !isValidQueenMove(board, selectedFrom, squareIndex)) {
+      setSelectedPiece(null); setSelectedFrom(null); setValidMoves([]); return;
     }
     if (pieceType === PIECE_TYPES.KING) {
-      const kingHasMoved = movedPieces.has(draggedFrom);
-      if (!isValidKingMove(board, draggedFrom, squareIndex, kingHasMoved)) {
-        setDraggedPiece(null); setDraggedFrom(null); setValidMoves([]); return;
+      const kingHasMoved = movedPieces.has(selectedFrom);
+      if (!isValidKingMove(board, selectedFrom, squareIndex, kingHasMoved)) {
+        setSelectedPiece(null); setSelectedFrom(null); setValidMoves([]); return;
       }
     }
 
     // Check if move leaves king in check
     const testBoard = [...board];
-    testBoard[squareIndex] = draggedPiece;
-    testBoard[draggedFrom] = 0;
+    testBoard[squareIndex] = selectedPiece;
+    testBoard[selectedFrom] = 0;
 
     if (pieceType === PIECE_TYPES.PAWN && squareIndex === enPassantTarget) {
       const { row: toRow, col: toCol } = indexToRowCol(squareIndex);
@@ -287,20 +283,20 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
     }
 
     if (isKingInCheck(testBoard, isWhite)) {
-      setDraggedPiece(null);
-      setDraggedFrom(null);
+      setSelectedPiece(null);
+      setSelectedFrom(null);
       return;
     }
 
     // Execute the move
     let isCapture = board[squareIndex] !== 0;
     const newBoard = [...board];
-    newBoard[squareIndex] = draggedPiece;
-    newBoard[draggedFrom] = 0;
+    newBoard[squareIndex] = selectedPiece;
+    newBoard[selectedFrom] = 0;
 
     // Handle castling
     if (pieceType === PIECE_TYPES.KING) {
-      const { row: fromRow, col: fromCol } = indexToRowCol(draggedFrom);
+      const { row: fromRow, col: fromCol } = indexToRowCol(selectedFrom);
       const { row: toRow, col: toCol } = indexToRowCol(squareIndex);
       if (Math.abs(toCol - fromCol) === 2) {
         const direction = toCol > fromCol ? 1 : -1;
@@ -315,23 +311,23 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
     // Handle en passant capture
     if (pieceType === PIECE_TYPES.PAWN && squareIndex === enPassantTarget) {
       const { row: toRow, col: toCol } = indexToRowCol(squareIndex);
-      const capturedPawnRow = draggedPiece > 0 ? toRow + 1 : toRow - 1;
+      const capturedPawnRow = selectedPiece > 0 ? toRow + 1 : toRow - 1;
       newBoard[capturedPawnRow * 8 + toCol] = 0;
       isCapture = true;
     }
 
-    const newEnPassantTarget = getEnPassantTarget(board, draggedFrom, squareIndex);
+    const newEnPassantTarget = getEnPassantTarget(board, selectedFrom, squareIndex);
     setEnPassantTarget(newEnPassantTarget);
 
-    const isPromotion = needsPromotion(draggedPiece, squareIndex);
+    const isPromotion = needsPromotion(selectedPiece, squareIndex);
     if (isPromotion) {
       setPromotionSquare(squareIndex);
-      lastMoveRef.current = { from: draggedFrom, to: squareIndex };
+      lastMoveRef.current = { from: selectedFrom, to: squareIndex };
     }
 
     setBoard(newBoard);
 
-    const newMovedPieces = new Set([...movedPieces, draggedFrom]);
+    const newMovedPieces = new Set([...movedPieces, selectedFrom]);
     setMovedPieces(newMovedPieces);
 
     const newHalfMoveClock = (pieceType === PIECE_TYPES.PAWN || isCapture) ? 0 : halfMoveClock + 1;
@@ -341,8 +337,8 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
     const newPosHistory = [...positionHistory, positionKey];
     setPositionHistory(newPosHistory);
 
-    setDraggedPiece(null);
-    setDraggedFrom(null);
+    setSelectedPiece(null);
+    setSelectedFrom(null);
     setValidMoves([]);
 
     if (isCapture) { playCaptureSound(); } else { playMoveSound(); }
@@ -350,10 +346,10 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
     if (isPromotion) return;
 
     // Record the move
-    recordMove(draggedFrom, squareIndex);
+    recordMove(selectedFrom, squareIndex);
     const newMoves = [...moveHistory];
     const colChars = 'abcdefgh';
-    newMoves.push(colChars[draggedFrom % 8] + (8 - Math.floor(draggedFrom / 8)) + colChars[squareIndex % 8] + (8 - Math.floor(squareIndex / 8)));
+    newMoves.push(colChars[selectedFrom % 8] + (8 - Math.floor(selectedFrom / 8)) + colChars[squareIndex % 8] + (8 - Math.floor(squareIndex / 8)));
 
     const nextTurn = currentTurn === 'white' ? 'black' : 'white';
     setCurrentTurn(nextTurn);
@@ -364,6 +360,21 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
 
     if (nextTurn === engineColor && !result) {
       setTimeout(() => makeEngineMove(newBoard, nextTurn), 500);
+    }
+  };
+
+  const handleSquareClick = (squareIndex) => {
+    if (gameEndedRef.current || isEngineThinking || promotionSquare !== null || currentTurn === engineColor) return;
+    if (validMoves.includes(squareIndex)) {
+      handleMove(squareIndex);
+      return;
+    }
+    setSelectedPiece(null);
+    setSelectedFrom(null);
+    setValidMoves([]);
+    const piece = board[squareIndex];
+    if (squareIndex !== selectedFrom && piece !== 0 && (piece > 0 ? 'white' : 'black') === currentTurn) {
+      handleSelectPiece(squareIndex, piece);
     }
   };
 
@@ -473,22 +484,20 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
         const piece = board[squareIndex];
         const isLight = (x + y) % 2 === 0;
         const isValidMove = validMoves.includes(squareIndex);
-        const squareClass = `square ${isLight ? 'light' : 'dark'}${isValidMove ? ' valid-move' : ''}`;
+        const squareClass = `square ${isLight ? 'light' : 'dark'}${isValidMove ? ' valid-move' : ''}${selectedFrom === squareIndex ? ' selected' : ''}`;
 
         row.push(
-          <div
+          <button
             key={`${x}-${y}`}
+            type="button"
             className={squareClass}
-            onDragOver={handleDragOver}
-            onDrop={() => handleDrop(squareIndex)}
+            data-square={`${'abcdefgh'[x]}${8 - y}`}
+            aria-label={`Square ${'abcdefgh'[x]}${8 - y}`}
+            aria-pressed={selectedFrom === squareIndex}
+            onClick={() => handleSquareClick(squareIndex)}
           >
-            {piece !== 0 && (
-              <Piece
-                type={piece}
-                onDragStart={() => handleDragStart(squareIndex, piece)}
-              />
-            )}
-          </div>
+            {piece !== 0 && <Piece type={piece} />}
+          </button>
         );
       }
 
@@ -555,7 +564,8 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
         </div>
       )}
 
-      <div className="chessboard">
+      <p className="board-instructions">Click a piece, then click a highlighted square to move.</p>
+      <div className="chessboard" role="group" aria-label="Chess board">
         {renderBoard()}
       </div>
 
@@ -564,19 +574,19 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
           <div className="promotion-dialog">
             <h3>Promote Pawn</h3>
             <div className="promotion-choices">
-              <button onClick={() => handlePromotion(PIECE_TYPES.QUEEN)}>
+              <button aria-label="Promote to Queen" onClick={() => handlePromotion(PIECE_TYPES.QUEEN)}>
                 <Piece type={board[promotionSquare] > 0 ? PIECE_TYPES.QUEEN : -PIECE_TYPES.QUEEN} />
                 <span>Queen</span>
               </button>
-              <button onClick={() => handlePromotion(PIECE_TYPES.ROOK)}>
+              <button aria-label="Promote to Rook" onClick={() => handlePromotion(PIECE_TYPES.ROOK)}>
                 <Piece type={board[promotionSquare] > 0 ? PIECE_TYPES.ROOK : -PIECE_TYPES.ROOK} />
                 <span>Rook</span>
               </button>
-              <button onClick={() => handlePromotion(PIECE_TYPES.BISHOP)}>
+              <button aria-label="Promote to Bishop" onClick={() => handlePromotion(PIECE_TYPES.BISHOP)}>
                 <Piece type={board[promotionSquare] > 0 ? PIECE_TYPES.BISHOP : -PIECE_TYPES.BISHOP} />
                 <span>Bishop</span>
               </button>
-              <button onClick={() => handlePromotion(PIECE_TYPES.KNIGHT)}>
+              <button aria-label="Promote to Knight" onClick={() => handlePromotion(PIECE_TYPES.KNIGHT)}>
                 <Piece type={board[promotionSquare] > 0 ? PIECE_TYPES.KNIGHT : -PIECE_TYPES.KNIGHT} />
                 <span>Knight</span>
               </button>
