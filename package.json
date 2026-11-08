@@ -13,7 +13,8 @@
     "dev:server": "npm --prefix server run dev",
     "test:server": "npm --prefix server test",
     "test:login": "node scripts/test-login-demo.mjs",
-    "dev:demo": "node scripts/dev-demo.mjs"
+    "dev:demo": "node scripts/dev-demo.mjs",
+    "test:landing": "node scripts/test-login-page.mjs"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.0",
