@@ -180,5 +180,6 @@ main().catch((err) => {
   console.error(
     'Chess startup failed; check the approved configuration and installed dependencies.',
   );
+  console.error(err);
   process.exit(1);
 });
