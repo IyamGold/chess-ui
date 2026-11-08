@@ -8,6 +8,10 @@ const cookie = (request, name) => {
     .find((part) => part.trim().startsWith(`${name}=`));
   return value ? value.trim().slice(name.length + 1) : undefined;
 };
+const publicChessOrigins = new Set([
+  'https://chess-demo.withlogin.com',
+  'https://onchainchess.app',
+]);
 const loginConfig = ({ issuer, origin, clientId }) => {
   const issuerUrl = new URL(issuer),
     originUrl = new URL(origin);
@@ -20,7 +24,7 @@ const loginConfig = ({ issuer, origin, clientId }) => {
     originUrl.hostname === 'localhost';
   if (
     (!secure && !local) ||
-    (secure && origin !== 'https://chess-demo.withlogin.com') ||
+    (secure && !publicChessOrigins.has(origin)) ||
     issuerUrl.username ||
     issuerUrl.password ||
     issuerUrl.search ||
@@ -221,6 +225,6 @@ async function createLogin(db, options) {
     req.user = { id: user.id, username: user.username };
     next();
   };
-  return { router, session, requireSession, origin };
+  return { router, session, requireSession, origin, secure };
 }
 module.exports = { createLogin, loginConfig };

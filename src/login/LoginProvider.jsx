@@ -2,13 +2,26 @@ import { useEffect, useState } from 'react';
 import { Context } from './context';
 export function LoginProvider({ children }) {
   const [profile, setProfile] = useState(null),
-    [loading, setLoading] = useState(true);
+    [loading, setLoading] = useState(true),
+    [serviceError, setServiceError] = useState(null);
   const refresh = async () => {
     try {
-      const response = await fetch('/api/login/session');
-      setProfile(response.ok ? await response.json() : null);
+      const response = await fetch('/api/login/session', { cache: 'no-store' });
+      if (
+        !response.headers.get('content-type')?.includes('application/json') ||
+        (!response.ok && response.status !== 401)
+      ) {
+        throw new Error('Login service unavailable');
+      }
+      const data = await response.json();
+      if (response.ok && (!Number.isSafeInteger(data?.id) || typeof data?.username !== 'string')) {
+        throw new Error('Invalid game session');
+      }
+      setProfile(response.ok ? data : null);
+      setServiceError(null);
     } catch {
       setProfile(null);
+      setServiceError('Sign-in is temporarily unavailable. Please try again shortly.');
     } finally {
       setLoading(false);
     }
@@ -30,6 +43,7 @@ export function LoginProvider({ children }) {
       value={{
         profile,
         loading,
+        serviceError,
         refresh,
         logout,
         isAuthenticated: !!profile,
