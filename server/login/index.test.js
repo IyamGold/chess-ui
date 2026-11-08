@@ -119,3 +119,24 @@ test('hosted invalid callbacks clear only a Secure flow cookie and cannot create
     db.close();
   }
 });
+
+test('onchainchess.app uses hosted Secure cookies and still rejects lookalike origins', async () => {
+  const options = { issuer: 'https://demo.withlogin.com/oidc', origin: 'https://onchainchess.app' };
+  assert.equal(loginConfig(options).secure, true);
+  for (const origin of [
+    'http://onchainchess.app',
+    'https://www.onchainchess.app',
+    'https://onchainchess.app.attacker.invalid',
+    'https://onchainchess.app/?x=1',
+  ]) {
+    assert.throws(() => loginConfig({ ...options, origin }));
+  }
+  const db = database();
+  try {
+    const login = await createLogin(db, options);
+    assert.equal(login.origin, 'https://onchainchess.app');
+    assert.equal(login.secure, true);
+  } finally {
+    db.close();
+  }
+});

@@ -48,6 +48,29 @@ async function move(page, from, to) {
   await page.locator(`[data-square="${to}"]`).click();
 }
 try {
+  // Regression: a static host's SPA fallback is not a working sign-in backend.
+  const offline = await browser.newContext();
+  await offline.route('**/api/login/session', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><html>Chess SPA</html>',
+    }),
+  );
+  const offlinePage = await offline.newPage();
+  await offlinePage.goto(base + '/login');
+  await offlinePage
+    .getByRole('alert')
+    .filter({ hasText: 'Sign-in is temporarily unavailable' })
+    .waitFor();
+  assert.equal(
+    await offlinePage.getByRole('link', { name: 'Continue with Login', exact: true }).count(),
+    0,
+  );
+  await offline.unroute('**/api/login/session');
+  await offlinePage.getByRole('button', { name: 'Try again', exact: true }).click();
+  await offlinePage.getByRole('link', { name: 'Continue with Login', exact: true }).waitFor();
+  await offline.close();
   const a = await signup('white'),
     b = await signup('black');
   const profile = await (await a.request.get(base + '/api/login/session')).json();
@@ -111,7 +134,7 @@ try {
   assert.equal((await a.request.get(base + '/api/rooms')).status(), 401);
   assert.ok(await b.evaluate(() => !localStorage.getItem('server_auth_token')));
   console.log(
-    'PASS: Login/passkeys, optional KYC, cookie auth, Origin rejection, two-player UI checkmate, reload, draw agreement, Stockfish and logout.',
+    'PASS: API-misrouting recovery, Login/passkeys, optional KYC, cookie auth, Origin rejection, two-player UI checkmate, reload, draw agreement, Stockfish and logout.',
   );
 } finally {
   await browser.close();

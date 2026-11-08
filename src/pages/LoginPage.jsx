@@ -19,9 +19,18 @@ export default function LoginPage() {
       {error && (
         <p role="alert">Sign-in was cancelled, expired, or unavailable. You can try again.</p>
       )}
-      <a className="setup-start" href="/api/login/start">
-        Continue with Login
-      </a>
+      {login.serviceError ? (
+        <>
+          <p role="alert">{login.serviceError}</p>
+          <button className="setup-start" onClick={() => void login.refresh()}>
+            Try again
+          </button>
+        </>
+      ) : (
+        <a className="setup-start" href="/api/login/start">
+          Continue with Login
+        </a>
+      )}
       <p>KYC is optional. This hackathon demo uses testnet money and sandbox verification only.</p>
     </main>
   );

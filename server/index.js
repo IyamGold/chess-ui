@@ -30,7 +30,7 @@ async function main() {
       })
     : null;
 
-  const hosted = login?.origin === 'https://chess-demo.withlogin.com';
+  const hosted = login?.secure === true;
   if (process.env.CHESS_PUBLIC_DEMO === '1' && !hosted)
     throw new Error('Public Chess requires the approved HTTPS Login configuration.');
   if (

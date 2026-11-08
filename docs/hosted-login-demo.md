@@ -4,6 +4,10 @@
 Build on this repository's existing Login integration; do not deploy the old
 wallet/passkey service or Fluent contract for this flow.
 
+For the current public domain **onchainchess.app**, follow the
+[domain and Login-routing handoff](onchainchess-login-routing.md). The examples
+below retain the originally proposed alternate demo domain.
+
 ## Railway service
 
 Deploy the repository root on Railway using `railway.json`. The single Express
