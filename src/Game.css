@@ -75,8 +75,8 @@
   background: #608d48;
 }
 .chess-app .chessboard .piece-svg {
-  width: 85%;
-  height: 85%;
+  width: 100%;
+  height: 100%;
   filter: none;
   transition: none;
 }
@@ -395,15 +395,6 @@
     font-size: 12px;
   }
 }
-/* Keep light pieces readable on the light squares, as in Gold's reference. */
-.chess-app .chessboard img[src*='white'] {
-  filter: grayscale(1) brightness(1.08) drop-shadow(0.65px 0 0 #454545)
-    drop-shadow(-0.65px 0 0 #454545) drop-shadow(0 0.65px 0 #454545)
-    drop-shadow(0 -0.65px 0 #454545);
-}
-.chess-app .chessboard img:not([src*='white']) {
-  filter: grayscale(1) brightness(1.12);
-}
 @media (max-width: 760px) {
   .match-view .chess-workspace {
     min-height: calc(100svh - 36px);
@@ -514,7 +505,8 @@
 .chess-app .promotion-choices img {
   width: 90%;
   height: 90%;
-  filter: grayscale(1) drop-shadow(0 0 1px #000);
+  object-fit: contain;
+  filter: none;
 }
 .chess-app .promotion-choices span {
   font-size: 11px;
@@ -565,5 +557,28 @@
 @media (max-width: 760px) {
   .chess-app .game-actions button {
     min-height: 44px;
+  }
+}
+.match-clock:not(:has(svg)) {
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+  min-width: 104px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.match-clock.low-time {
+  color: #ff8794;
+  border-color: #d74c60;
+}
+.match-clock.low-time.active {
+  color: #fff;
+  background: #b91833;
+  border-color: #ff8290;
+}
+@media (max-width: 760px) {
+  .match-clock:not(:has(svg)) {
+    font-size: 25px;
+    min-width: 86px;
   }
 }

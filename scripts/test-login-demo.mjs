@@ -311,7 +311,7 @@ try {
     )
     .toBe(3);
 
-  // The browser-local Stockfish board uses the same two-click interaction.
+  // New timed Stockfish matches use the same two-click interaction.
   await a.goto(base);
   await a.getByRole('button', { name: '+ New Game', exact: true }).click();
   await a.getByRole('button', { name: 'Start Game', exact: true }).click();
@@ -351,7 +351,7 @@ try {
   assert.equal((await a.request.get(base + '/api/rooms')).status(), 401);
   assert.ok(await b.evaluate(() => !localStorage.getItem('server_auth_token')));
   console.log(
-    'PASS: API-misrouting recovery, Login/passkeys, optional KYC, cookie auth, Origin rejection, two-click mouse/touch/keyboard moves, no native drag, promotion, local boards in both colours, checkmate, reload, draw/resign controls, Stockfish, game menu and logout.'
+    'PASS: API-misrouting recovery, Login/passkeys, optional KYC, cookie auth, Origin rejection, two-click mouse/touch/keyboard moves, no native drag, promotion, timed Stockfish matches in both colours, checkmate, reload, draw/resign controls, Stockfish, game menu and logout.'
   );
 } finally {
   await browser.close();

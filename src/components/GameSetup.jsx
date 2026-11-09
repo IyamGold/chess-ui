@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ChessIcon from './ChessIcon';
+import { pieceArtwork } from '../pieceArtwork';
 
 function GameSetup({
   onStartLocal,
@@ -28,7 +29,9 @@ function GameSetup({
     <div className="new-game-setup" aria-busy={starting}>
       <p className="card-eyebrow">Make it your game</p>
       <h2>New Game</h2>
-      <p className="setup-intro">Choose your opponent and the side you’d like to play.</p>
+      <p className="setup-intro">
+        Choose your opponent and the side you’d like to play.
+      </p>
 
       <div className="opponent-picker">
         <label>Opponent:</label>
@@ -36,7 +39,9 @@ function GameSetup({
           <button
             disabled={starting}
             aria-pressed={opponent === 'local'}
-            className={`opponent-option ${opponent === 'local' ? 'selected' : ''}`}
+            className={`opponent-option ${
+              opponent === 'local' ? 'selected' : ''
+            }`}
             onClick={() => setOpponent('local')}
           >
             <ChessIcon name="computer" size={23} />
@@ -44,7 +49,9 @@ function GameSetup({
           </button>
           <button
             aria-pressed={opponent === 'online'}
-            className={`opponent-option ${opponent === 'online' ? 'selected' : ''}`}
+            className={`opponent-option ${
+              opponent === 'online' ? 'selected' : ''
+            }`}
             onClick={() => setOpponent('online')}
             disabled={starting || !isServerConnected}
           >
@@ -52,7 +59,9 @@ function GameSetup({
             Friend online
           </button>
         </div>
-        {!isServerConnected && <span className="server-offline-msg">Server not connected</span>}
+        {!isServerConnected && (
+          <span className="server-offline-msg">Server not connected</span>
+        )}
       </div>
 
       <div className="color-picker">
@@ -64,7 +73,13 @@ function GameSetup({
             className={`color-option ${color === 'white' ? 'selected' : ''}`}
             onClick={() => setColor('white')}
           >
-            <img src="/whiteking.svg" width="28" height="30" alt="" draggable={false} />
+            <img
+              src={pieceArtwork(1).src}
+              width="28"
+              height="30"
+              alt=""
+              draggable={false}
+            />
             White
           </button>
           <button
@@ -73,7 +88,13 @@ function GameSetup({
             className={`color-option ${color === 'black' ? 'selected' : ''}`}
             onClick={() => setColor('black')}
           >
-            <img src="/blackking.svg" width="28" height="30" alt="" draggable={false} />
+            <img
+              src={pieceArtwork(-1).src}
+              width="28"
+              height="30"
+              alt=""
+              draggable={false}
+            />
             Black
           </button>
         </div>
@@ -84,7 +105,11 @@ function GameSetup({
           Cancel
         </button>
         {isServerConnected && (
-          <button className="setup-back" onClick={onJoinGame} disabled={starting}>
+          <button
+            className="setup-back"
+            onClick={onJoinGame}
+            disabled={starting}
+          >
             Join Game
           </button>
         )}

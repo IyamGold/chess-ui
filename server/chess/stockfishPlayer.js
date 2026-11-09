@@ -5,6 +5,7 @@ class StockfishPlayer {
   constructor() {
     this.worker = null;
     this.ready = false;
+    this.queue = Promise.resolve();
   }
 
   async init() {
@@ -48,7 +49,14 @@ class StockfishPlayer {
     });
   }
 
-  async getBestMove(fen, skillLevel = 10) {
+  getBestMove(fen, skillLevel = 10) {
+    // A single UCI worker must finish one search before another game uses it.
+    const task = this.queue.then(() => this.search(fen, skillLevel));
+    this.queue = task.catch(() => {});
+    return task;
+  }
+
+  async search(fen, skillLevel = 10) {
     if (!this.ready || !this.worker) {
       throw new Error('Stockfish not initialized');
     }
@@ -58,10 +66,12 @@ class StockfishPlayer {
       this.worker.postMessage(`setoption name Skill Level value ${Math.max(0, Math.min(20, skillLevel))}`);
 
       let buffer = '';
+      let timer;
       const onMessage = (data) => {
         buffer += data;
 
         if (buffer.includes('bestmove')) {
+          clearTimeout(timer);
           this.worker.removeListener('message', onMessage);
 
           const match = buffer.match(/bestmove ([a-h][1-8])([a-h][1-8])([qrbn])?/);
@@ -86,7 +96,7 @@ class StockfishPlayer {
       this.worker.postMessage('go movetime 1000');
 
       // Timeout after 10 seconds
-      setTimeout(() => {
+      timer = setTimeout(() => {
         this.worker.removeListener('message', onMessage);
         reject(new Error('Stockfish move timed out'));
       }, 10000);

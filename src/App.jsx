@@ -11,18 +11,14 @@ import './Dashboard.css';
 import './Game.css';
 import GameHeader from './components/GameHeader';
 import AccountDialog from './components/AccountDialog';
+import LoadingScreen from './components/LoadingScreen';
 import ChessIcon from './components/ChessIcon';
 import Chessboard from './Chessboard';
 import GameList from './components/GameList';
 import GameSetup from './components/GameSetup';
 import JoinGame from './components/JoinGame';
 import OnlineChessboard from './components/OnlineChessboard';
-import {
-  createGame,
-  saveGame,
-  loadGame,
-  setCurrentUser,
-} from './utils/gameManager';
+import { saveGame, loadGame, setCurrentUser } from './utils/gameManager';
 import { useLogin } from './login/context';
 import AccountPanel from './login/AccountPanel';
 import { GAME_SERVER_URL } from './config';
@@ -73,43 +69,31 @@ function App() {
     setView('setup');
   };
 
-  // Local AI game start
-  const handleStartLocal = (color) => {
-    const engineColor = color === 'white' ? 'black' : 'white';
-    const game = createGame(engineColor);
-    setActiveGame(game);
-    setView('playing');
-  };
-
-  // Online game start
-  const handleStartOnline = async (color) => {
-    if (!sessionReady) return;
+  // New computer matches use the existing server Stockfish service so clocks
+  // and timeout results have the same authority as human-vs-human matches.
+  const startMatch = async (color, opponent) => {
     setNotice(null);
-
     try {
-      const resp = await fetch(`${GAME_SERVER_URL}/api/rooms`, {
+      const response = await fetch(`${GAME_SERVER_URL}/api/rooms`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ color, opponent: 'human' }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color, opponent }),
       });
-
-      const data = await resp.json();
-      if (!resp.ok) {
+      const data = await response.json();
+      if (!response.ok) {
         setNotice(
           data.error || 'Could not create your game. Please try again.'
         );
         return;
       }
-
-      // The room starts in 'waiting'; OnlineChessboard shows the invite code
-      // until the opponent joins, then swaps to the board.
       navigate(`/game/${data.roomId}`);
     } catch {
       setNotice('Could not reach the game server. Please try again.');
     }
   };
+  const handleStartLocal = (color) => startMatch(color, 'stockfish');
+
+  const handleStartOnline = (color) => startMatch(color, 'human');
 
   const handleJoinGame = () => {
     setView('join');
@@ -166,12 +150,7 @@ function App() {
   };
 
   // Unauthenticated: route to /login, preserving where they tried to go.
-  if (passkey.loading)
-    return (
-      <main>
-        <p>Checking your game session…</p>
-      </main>
-    );
+  if (passkey.loading) return <LoadingScreen fullScreen />;
   if (!passkey.isAuthenticated) {
     const returnTo = location.pathname + location.search;
     return (

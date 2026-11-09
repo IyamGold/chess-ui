@@ -6,6 +6,7 @@ import { needsPromotion, isKingInCheck } from '../moveValidation';
 import { playMoveSound, playCaptureSound, playNotifySound } from '../sounds';
 import { useOnlineGame } from '../hooks/useOnlineGame';
 import MatchPlayer from './MatchPlayer';
+import LoadingScreen from './LoadingScreen';
 import BoardCoordinates from './BoardCoordinates';
 
 async function gameAction(roomId, path, body = {}) {
@@ -130,11 +131,7 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
 
   // Loading state
   if (game.status === 'loading' || !game.board) {
-    return (
-      <div className="online-loading">
-        <p>Loading game...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   // Waiting for an opponent to join — restorable on reload via /game/:roomId.
@@ -188,9 +185,13 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
   if (game.gameResult) {
     playNotifySound();
     if (game.gameResult === '1-0') {
-      gameStatus = 'White wins!';
+      gameStatus = game.clock?.timeoutColor
+        ? 'White wins on time!'
+        : 'White wins!';
     } else if (game.gameResult === '0-1') {
-      gameStatus = 'Black wins!';
+      gameStatus = game.clock?.timeoutColor
+        ? 'Black wins on time!'
+        : 'Black wins!';
     } else {
       gameStatus = 'Draw!';
       statusColor = '#163415';
@@ -228,6 +229,8 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
         </div>
       )}
       <MatchPlayer
+        clock={game.clock}
+        computer={game.room?.engineColor === topColor}
         name={playerName(topColor)}
         color={topColor}
         isYou={game.myColor === topColor}
@@ -300,6 +303,8 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
         )}
       </div>
       <MatchPlayer
+        clock={game.clock}
+        computer={game.room?.engineColor === bottomColor}
         name={playerName(bottomColor)}
         color={bottomColor}
         isYou={game.myColor === bottomColor}

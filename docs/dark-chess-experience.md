@@ -8,7 +8,7 @@ Opening an online room or local Stockfish game switches to the focused board lay
 
 ## Clock and wallet behaviour
 
-The preview's `10:00` values were illustrative. Existing games and the server API have no time-control or timeout rules, so the panels say **Untimed**. They do not run fake countdowns or decide wins on a browser timer. Timed games would need a separate server-authoritative implementation. Turn indicators and finished states use actual game state.
+The original release left games untimed. New games now use the server-authoritative 10+0 clocks documented in [Onboarding, loading and clocks](onboarding-loading-clocks.md). Previously saved games remain untimed. The clock panels use real server snapshots; no browser timer awards a result.
 
 The wallet button opens the signed-in account's configured Login origin. Chess does not request or display wallet balances, keys, receiving addresses or identity documents. No mock balance or sample player is shipped. Verification remains optional. Sandbox verification and unaudited/testnet labels remain visible.
 

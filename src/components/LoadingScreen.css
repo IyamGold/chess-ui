@@ -1,0 +1,72 @@
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  min-height: 240px;
+  background: #000;
+  color: #b3b3bb;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  text-align: center;
+}
+.loading-screen--full {
+  min-height: 100svh;
+}
+.loading-knight {
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+.loading-dots {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+.loading-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a3ff59;
+  opacity: 0.25;
+  animation: loading-dot 1.2s ease-in-out infinite;
+}
+.loading-dots i:nth-child(2) {
+  animation-delay: 160ms;
+}
+.loading-dots i:nth-child(3) {
+  animation-delay: 320ms;
+}
+.loading-label {
+  font-size: 14px;
+  font-weight: 400;
+}
+@keyframes loading-dot {
+  0%,
+  65%,
+  100% {
+    opacity: 0.25;
+  }
+  25% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-dots i {
+    animation: none;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chess-shell {
+    animation: chess-ready 200ms ease-out;
+  }
+  @keyframes chess-ready {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}

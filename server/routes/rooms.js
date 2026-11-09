@@ -1,9 +1,10 @@
 const express = require('express');
+const { createClocks } = require('../chess/clocks');
 const { v4: uuidv4 } = require('uuid');
 const {
   createInitialGameState, serializeGameState, deserializeGameState,
   parseMove, isMoveLegal, getLegalMoves, applyMove, getGameResult,
-  boardToFEN, indexToAlgebraic
+  boardToFEN
 } = require('../chess/gameLogic');
 
 const CHESS_WORDS = ['ROOK', 'KING', 'PAWN', 'MATE', 'MOVE', 'PLAY', 'GAME', 'DRAW'];
@@ -22,7 +23,7 @@ function generateInviteCode(db) {
   return uuidv4().slice(0, 8).toUpperCase();
 }
 
-function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
+function createRoomsRouter(db, { broadcast, getStockfishPlayer, clocks = createClocks(db, { broadcast }) }) {
   const router = express.Router();
 
   // Prepared statements
@@ -51,6 +52,8 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
     UPDATE rooms SET status = 'finished', result = ?, updated_at = datetime('now') WHERE id = ?
   `);
   const findUserById = db.prepare('SELECT id, username FROM users WHERE id = ?');
+
+  const displayName = user => user?.username === '__stockfish__' ? 'Stockfish' : (user?.username || null);
 
   // Stockfish system user
   const findStockfishUser = db.prepare("SELECT id FROM users WHERE username = '__stockfish__'");
@@ -122,6 +125,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
       const s = serializeGameState(gs);
       insertGameState.run(roomId, s.board, s.current_turn, s.move_history, s.en_passant_target, s.moved_pieces, s.half_move_clock, s.position_history);
 
+      clocks.create(Number(roomId), status === 'playing');
       return roomId;
     });
 
@@ -175,7 +179,10 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
       myColor = 'black';
     }
 
-    updateRoomJoin.run(whiteUserId, blackUserId, room.id);
+    db.transaction(() => {
+      updateRoomJoin.run(whiteUserId, blackUserId, room.id);
+      clocks.start(room.id);
+    })();
 
     // Broadcast join event
     broadcast(room.id, 'join', {
@@ -202,6 +209,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
 
   router.get('/', (req, res) => {
     const userId = req.user.id;
+    for (const row of findUserRooms.all(userId, userId)) clocks.expire(row.id);
     const rows = findUserRooms.all(userId, userId);
 
     const rooms = rows.map(r => {
@@ -214,8 +222,10 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
         inviteCode: r.invite_code,
         status: r.status,
         result: r.result,
-        white: whiteUser ? whiteUser.username : null,
-        black: blackUser ? blackUser.username : null,
+        isStockfish: Boolean(r.is_stockfish),
+        clock: clocks.read(r.id),
+        white: displayName(whiteUser),
+        black: displayName(blackUser),
         myColor: r.white_user_id === userId ? 'white' : 'black',
         currentTurn: r.current_turn,
         moveCount: moveHistory.length,
@@ -233,6 +243,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
       return res.status(400).json({ error: 'Invalid room ID' });
     }
 
+    clocks.expire(roomId);
     const room = findRoomById.get(roomId);
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
@@ -261,10 +272,13 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
       inviteCode: room.invite_code,
       status: room.status,
       isStockfish: !!room.is_stockfish,
+      engineColor: room.is_stockfish ? (whiteUser?.username === '__stockfish__' ? 'white' : 'black') : null,
       stockfishLevel: room.stockfish_level,
       result: room.result,
-      white: whiteUser ? whiteUser.username : null,
-      black: blackUser ? blackUser.username : null,
+      clock: clocks.read(roomId),
+      reason: clocks.read(roomId)?.timeoutColor ? 'timeout' : undefined,
+      white: displayName(whiteUser),
+      black: displayName(blackUser),
       myColor,
       fen,
       drawOffer: (() => {const offer=db.prepare('SELECT user_id FROM draw_offers WHERE room_id=?').get(roomId);return offer ? (offer.user_id===room.white_user_id?'white':'black') : null;})(),
@@ -294,6 +308,8 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
 
     // Use a transaction to prevent race conditions
     const submitMove = db.transaction(() => {
+      const at = clocks.now();
+      clocks.expire(roomId, at);
       const room = findRoomById.get(roomId);
       if (!room) {
         return { status: 404, body: { error: 'Room not found' } };
@@ -331,6 +347,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
           // Forfeit the game
           const loser = gameState.currentTurn;
           const result = loser === 'white' ? '0-1' : '1-0';
+          clocks.stop(roomId, at);
           updateRoomResult.run(result, roomId);
           illegalMoveCounters.delete(key);
 
@@ -372,6 +389,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
       const s = serializeGameState(newGameState);
       updateGameState.run(s.board, s.current_turn, s.move_history, s.en_passant_target, s.moved_pieces, s.half_move_clock, s.position_history, roomId);
 
+      clocks.switchTurn(roomId, at, gameResult.over);
       if (gameResult.over) {
         updateRoomResult.run(gameResult.result, roomId);
       }
@@ -384,6 +402,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
         status: 200,
         body: {
           ok: true,
+          clock: clocks.read(roomId, at),
           fen,
           move: move,
           board: newGameState.board,
@@ -413,7 +432,8 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
         board: txResult.newGameState.board,
         currentTurn: txResult.newGameState.currentTurn,
         moveHistory: txResult.newGameState.moveHistory,
-        legalMoves: txResult.body.legalMoves
+        legalMoves: txResult.body.legalMoves,
+        clock: txResult.body.clock
       }, req.user.id);
 
       if (txResult.gameResult.over) {
@@ -439,6 +459,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
   router.post('/:id/draw', (req,res) => {
     const id=Number(req.params.id), action=req.body.action;
     const apply=db.transaction(() => {
+      clocks.expire(id);
       const room=findRoomById.get(id);
       if(!room)return {status:404,error:'Room not found'};
       if(room.status!=='playing')return {status:409,error:'Game is not in progress'};
@@ -450,7 +471,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
       }else if(action==='accept'||action==='decline'){
         if(!offer||offer.user_id===req.user.id)return {status:409,error:'No opponent draw offer'};
         db.prepare('DELETE FROM draw_offers WHERE room_id=?').run(id);
-        if(action==='accept')updateRoomResult.run('1/2-1/2',id);
+        if(action==='accept'){clocks.stop(id);updateRoomResult.run('1/2-1/2',id);}
       }else return {status:400,error:'Invalid draw action'};
       return {status:200};
     });
@@ -468,6 +489,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
     }
 
     const submitResign = db.transaction(() => {
+      clocks.expire(roomId);
       const room = findRoomById.get(roomId);
       if (!room) {
         return { status: 404, body: { error: 'Room not found' } };
@@ -485,6 +507,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
       }
 
       const result = isWhite ? '0-1' : '1-0';
+      clocks.stop(roomId);
       updateRoomResult.run(result, roomId);
 
       return {
@@ -513,6 +536,7 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
         const sfPlayer = getStockfishPlayer();
         if (!sfPlayer) return;
 
+        clocks.expire(roomId);
         const room = findRoomById.get(roomId);
         if (!room || room.status !== 'playing') return;
 
@@ -527,9 +551,13 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
 
         // Apply Stockfish's move within a transaction
         const sfSubmit = db.transaction(() => {
-          // Re-read to avoid stale state
+          const at = clocks.now();
+          clocks.expire(roomId, at);
+          if (findRoomById.get(roomId)?.status !== 'playing') return null;
+          // Re-read to avoid applying an engine reply after another move/result.
           const freshGsRow = findGameState.get(roomId);
           const freshGameState = deserializeGameState(freshGsRow);
+          if (boardToFEN(freshGameState) !== fen) return null;
 
           const parsed = parseMove(moveStr);
           if (!parsed) return null;
@@ -546,11 +574,12 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
           const s = serializeGameState(newGameState);
           updateGameState.run(s.board, s.current_turn, s.move_history, s.en_passant_target, s.moved_pieces, s.half_move_clock, s.position_history, roomId);
 
+          clocks.switchTurn(roomId, at, gameResult.over);
           if (gameResult.over) {
             updateRoomResult.run(gameResult.result, roomId);
           }
 
-          return { newGameState, gameResult, moveStr };
+          return { newGameState, gameResult, moveStr, clock: clocks.read(roomId, at) };
         });
 
         const result = sfSubmit();
@@ -562,7 +591,10 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer }) {
           move: result.moveStr,
           fen: newFen,
           currentTurn: result.newGameState.currentTurn,
-          moveHistory: result.newGameState.moveHistory
+          moveHistory: result.newGameState.moveHistory,
+          board: result.newGameState.board,
+          legalMoves: result.gameResult.over ? [] : getLegalMoves(result.newGameState),
+          clock: result.clock
         });
 
         if (result.gameResult.over) {

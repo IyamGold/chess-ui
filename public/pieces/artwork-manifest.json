@@ -1,0 +1,50 @@
+{
+  "black-bishop.png": {
+    "original": "IMG_2679.PNG",
+    "sha256": "0678ea343a019e4deab621955d55bdb30ef4902fa99e02697cbb3ae7f410d40b"
+  },
+  "black-king.png": {
+    "original": "IMG_2680.PNG",
+    "sha256": "cd91a234ce688db843652a52b6bd468faf14fbe51269f93aee14a1c426915f00"
+  },
+  "black-knight.png": {
+    "original": "IMG_2681.PNG",
+    "sha256": "4df6755e0bfa21f11ac10265435f08ab885c0dba758b90c23b81ab167ae4aeb0"
+  },
+  "black-pawn.png": {
+    "original": "IMG_2682.PNG",
+    "sha256": "bf51f92c85777b947fdaa008a6d194f30493398316ad111d913bff04fb96c680"
+  },
+  "black-queen.png": {
+    "original": "IMG_2683.PNG",
+    "sha256": "4252fee8d044d4ea0947c1474aeb2a1653dddee63b734653267c735897e91c83"
+  },
+  "black-rook.png": {
+    "original": "IMG_2684.PNG",
+    "sha256": "58600e06d3f82988868379945eb658fe95164296d9b0dc9640e01abf2a08fce5"
+  },
+  "white-bishop.png": {
+    "original": "IMG_2685.PNG",
+    "sha256": "ab4d09c7f838b4958996176de512ff53cad8762b0ec0108c68e9bd9c3fddf3c2"
+  },
+  "white-king.png": {
+    "original": "IMG_2686.PNG",
+    "sha256": "055e3c926c0ee837e532e6dbac897b3f696dc72263bf059248e3f6de5daabd15"
+  },
+  "white-knight.png": {
+    "original": "IMG_2687.PNG",
+    "sha256": "37962b6ed8868a4e98e0532753ac5ef08cd796d8ba101e3fb1128a71e706404b"
+  },
+  "white-pawn.png": {
+    "original": "IMG_2688.PNG",
+    "sha256": "7b4befeb14120b359e8c9c2bc9c6f9c940593db74b14bcf77aadfaa1acd8121f"
+  },
+  "white-queen.png": {
+    "original": "IMG_2689.PNG",
+    "sha256": "ba9e31c1c95efcbd10502eb74734a871249a176bc77d4b4bde8fbc45767c8791"
+  },
+  "white-rook.png": {
+    "original": "IMG_2690.PNG",
+    "sha256": "60a52d09dcf64572be3c0392571b9903dc953d5dfb95f57554d191ffee7d3215"
+  }
+}
