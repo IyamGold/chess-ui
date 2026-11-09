@@ -1,15 +1,28 @@
 import { useState, useRef } from 'react';
-import { Navigate, useLocation, useParams, useNavigate } from 'react-router-dom';
+import {
+  Navigate,
+  useLocation,
+  useParams,
+  useNavigate,
+} from 'react-router-dom';
 
 import './App.css';
 import './Dashboard.css';
+import './Game.css';
+import GameHeader from './components/GameHeader';
+import AccountDialog from './components/AccountDialog';
 import ChessIcon from './components/ChessIcon';
 import Chessboard from './Chessboard';
 import GameList from './components/GameList';
 import GameSetup from './components/GameSetup';
 import JoinGame from './components/JoinGame';
 import OnlineChessboard from './components/OnlineChessboard';
-import { createGame, saveGame, loadGame, setCurrentUser } from './utils/gameManager';
+import {
+  createGame,
+  saveGame,
+  loadGame,
+  setCurrentUser,
+} from './utils/gameManager';
 import { useLogin } from './login/context';
 import AccountPanel from './login/AccountPanel';
 import { GAME_SERVER_URL } from './config';
@@ -27,6 +40,7 @@ function App() {
   const [activeGame, setActiveGame] = useState(null);
   const [notice, setNotice] = useState(null);
   const [setupOpponent, setSetupOpponent] = useState('local');
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const passkey = useLogin();
   const sessionReady = passkey.isAuthenticated;
@@ -48,6 +62,7 @@ function App() {
       return;
     }
     setActiveGame(null);
+    setAccountOpen(false);
     setView('list');
     if (onlineRoomId) navigate('/');
   };
@@ -82,7 +97,9 @@ function App() {
 
       const data = await resp.json();
       if (!resp.ok) {
-        setNotice(data.error || 'Could not create your game. Please try again.');
+        setNotice(
+          data.error || 'Could not create your game. Please try again.'
+        );
         return;
       }
 
@@ -132,6 +149,7 @@ function App() {
   };
 
   const handleBackToList = () => {
+    setAccountOpen(false);
     setActiveGame(null);
     setView('list');
     if (onlineRoomId) navigate('/');
@@ -156,22 +174,38 @@ function App() {
     );
   if (!passkey.isAuthenticated) {
     const returnTo = location.pathname + location.search;
-    return <Navigate to={`/login?return_to=${encodeURIComponent(returnTo)}`} replace />;
+    return (
+      <Navigate
+        to={`/login?return_to=${encodeURIComponent(returnTo)}`}
+        replace
+      />
+    );
   }
 
   const atLobby = !onlineRoomId && view === 'list';
-  const scrollBehavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  const atGame = Boolean(onlineRoomId) || view === 'playing';
+  const scrollBehavior = matchMedia('(prefers-reduced-motion: reduce)').matches
+    ? 'auto'
+    : 'smooth';
   const showAccount = () => {
+    if (atGame) {
+      setAccountOpen(true);
+      return;
+    }
     const panel = document.getElementById('player-account');
     panel?.scrollIntoView({ block: 'center', behavior: scrollBehavior });
     panel?.focus({ preventScroll: true });
+  };
+  const closeAccount = () => {
+    setAccountOpen(false);
+    requestAnimationFrame(() => document.querySelector('.match-menu')?.focus());
   };
   const showGames = () => {
     handleBackToList();
     requestAnimationFrame(() =>
       document
         .getElementById('your-games')
-        ?.scrollIntoView({ block: 'start', behavior: scrollBehavior }),
+        ?.scrollIntoView({ block: 'start', behavior: scrollBehavior })
     );
   };
   const initials = (passkey.username || 'Player')
@@ -190,17 +224,29 @@ function App() {
       : 'Let’s play';
 
   return (
-    <div className="app chess-app">
+    <div className={`app chess-app${atGame ? ' match-view' : ''}`}>
+      {atGame && (
+        <GameHeader
+          onBack={handleBackToList}
+          onAccount={showAccount}
+          onLogout={handleLogout}
+          loginOrigin={passkey.profile.loginOrigin}
+        />
+      )}
       <div className="chess-shell">
         <aside className="chess-navigation">
-          <button className="chess-brand" onClick={handleBackToList} aria-label="Chess home">
+          <button
+            className="chess-brand"
+            onClick={handleBackToList}
+            aria-label="Chess home"
+          >
             <img src="/blackknight.svg" width="33" height="40" alt="" />
             <span>
               chess<span className="brand-dot">.</span>
               <small>with Login</small>
             </span>
           </button>
-          <p className="navigation-label">YOUR CHESS CORNER</p>
+          <p className="navigation-label">Your chess corner</p>
           <nav aria-label="Chess navigation">
             <button
               className={atLobby ? 'nav-item active' : 'nav-item'}
@@ -211,11 +257,19 @@ function App() {
               <span>Play</span>
               <ChessIcon name="chevron" size={15} />
             </button>
-            <button className="nav-item" aria-label="My games" onClick={showGames}>
+            <button
+              className="nav-item"
+              aria-label="My games"
+              onClick={showGames}
+            >
               <ChessIcon name="games" />
               <span>Games</span>
             </button>
-            <button className="nav-item" aria-label="My account" onClick={showAccount}>
+            <button
+              className="nav-item"
+              aria-label="My account"
+              onClick={showAccount}
+            >
               <ChessIcon name="user" />
               <span>Account</span>
             </button>
@@ -232,10 +286,7 @@ function App() {
         </aside>
         <div className="chess-main">
           <header className="chess-topbar">
-            <h1>
-              {pageTitle}
-              <span>.</span>
-            </h1>
+            <h1>{pageTitle}</h1>
             <div className="player-tools">
               <button
                 className="player-pill"
@@ -248,7 +299,11 @@ function App() {
                   <small>Signed in with Login</small>
                 </span>
               </button>
-              <button className="logout-button" aria-label="Log out" onClick={handleLogout}>
+              <button
+                className="logout-button"
+                aria-label="Log out"
+                onClick={handleLogout}
+              >
                 <ChessIcon name="logout" size={18} />
                 <span>Log out</span>
               </button>
@@ -313,18 +368,31 @@ function App() {
                 </>
               )}
             </main>
-            <aside className="player-sidebar">
-              <AccountPanel />
-            </aside>
+            {!atGame && (
+              <aside className="player-sidebar">
+                <AccountPanel />
+              </aside>
+            )}
           </div>
-          <footer className="chess-footer">
-            <span>Good games. Your people. Your next move.</span>
+          {!atGame && (
+            <button className="mobile-logout" onClick={handleLogout}>
+              <ChessIcon name="logout" size={18} />
+              Log out
+            </button>
+          )}
+          <footer className={atGame ? 'match-footer' : 'chess-footer'}>
+            <span>
+              {atGame
+                ? 'Chess with Login'
+                : 'Good games. Your people. Your next move.'}
+            </span>
             <span>
               Unaudited demo <b aria-hidden="true">·</b> Testnet only
             </span>
           </footer>
         </div>
       </div>
+      {atGame && accountOpen && <AccountDialog onClose={closeAccount} />}
     </div>
   );
 }

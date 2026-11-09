@@ -42,7 +42,7 @@ export default function AccountPanel() {
       tabIndex={-1}
       aria-labelledby="player-account-title"
     >
-      <p className="card-eyebrow">YOUR PROFILE</p>
+      <p className="card-eyebrow">Your profile</p>
       <h2 id="player-account-title">Your Login account</h2>
       <div className="profile-identity">
         <span className="profile-avatar">{initials}</span>
@@ -52,7 +52,7 @@ export default function AccountPanel() {
         </div>
       </div>
       <div className={`verification-label ${profile.verified_human ? 'verified' : ''}`}>
-        <ChessIcon name="shield" size={16} />
+        <ChessIcon name={profile.verified_human ? 'verified' : 'user'} size={16} />
         <span>{profile.verified_human ? 'Verified human' : 'Verification optional'}</span>
       </div>
       {profile.verification_sandbox && (
@@ -109,7 +109,7 @@ export default function AccountPanel() {
           <ChessIcon name="chevron" size={15} />
         </a>
         <a href="/api/login/start?fresh=1">
-          <ChessIcon name="shield" />
+          <ChessIcon name="verified" />
           <span>Refresh verification</span>
           <ChessIcon name="chevron" size={15} />
         </a>
