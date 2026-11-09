@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { Navigate, useLocation, useParams, useNavigate } from 'react-router-dom';
 
 import './App.css';
+import './Dashboard.css';
+import ChessIcon from './components/ChessIcon';
 import Chessboard from './Chessboard';
 import GameList from './components/GameList';
 import GameSetup from './components/GameSetup';
@@ -24,6 +26,7 @@ function App() {
   const [view, setView] = useState('list');
   const [activeGame, setActiveGame] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [setupOpponent, setSetupOpponent] = useState('local');
 
   const passkey = useLogin();
   const sessionReady = passkey.isAuthenticated;
@@ -49,7 +52,9 @@ function App() {
     if (onlineRoomId) navigate('/');
   };
 
-  const handleNewGame = () => {
+  const handleNewGame = (opponent = 'local') => {
+    setSetupOpponent(opponent);
+    setNotice(null);
     setView('setup');
   };
 
@@ -64,6 +69,7 @@ function App() {
   // Online game start
   const handleStartOnline = async (color) => {
     if (!sessionReady) return;
+    setNotice(null);
 
     try {
       const resp = await fetch(`${GAME_SERVER_URL}/api/rooms`, {
@@ -76,15 +82,15 @@ function App() {
 
       const data = await resp.json();
       if (!resp.ok) {
-        console.error('Create room failed:', data.error);
+        setNotice(data.error || 'Could not create your game. Please try again.');
         return;
       }
 
       // The room starts in 'waiting'; OnlineChessboard shows the invite code
       // until the opponent joins, then swaps to the board.
       navigate(`/game/${data.roomId}`);
-    } catch (err) {
-      console.error('Create room error:', err);
+    } catch {
+      setNotice('Could not reach the game server. Please try again.');
     }
   };
 
@@ -153,74 +159,172 @@ function App() {
     return <Navigate to={`/login?return_to=${encodeURIComponent(returnTo)}`} replace />;
   }
 
+  const atLobby = !onlineRoomId && view === 'list';
+  const scrollBehavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  const showAccount = () => {
+    const panel = document.getElementById('player-account');
+    panel?.scrollIntoView({ block: 'center', behavior: scrollBehavior });
+    panel?.focus({ preventScroll: true });
+  };
+  const showGames = () => {
+    handleBackToList();
+    requestAnimationFrame(() =>
+      document
+        .getElementById('your-games')
+        ?.scrollIntoView({ block: 'start', behavior: scrollBehavior }),
+    );
+  };
+  const initials = (passkey.username || 'Player')
+    .split('-')
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+  const pageTitle =
+    onlineRoomId || view === 'playing'
+      ? 'At the board'
+      : view === 'setup'
+      ? 'New game'
+      : view === 'join'
+      ? 'Join a game'
+      : 'Let’s play';
+
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Chess Board</h1>
-        <div className="passkey-status">
-          <span className="passkey-badge" title={passkey.account}>
-            {passkey.username || passkey.account?.slice(0, 6) + '...' + passkey.account?.slice(-4)}
-          </span>
-          {sessionReady && <span className="server-badge">Online</span>}
-          <button className="passkey-logout" onClick={handleLogout}>
-            Logout
+    <div className="app chess-app">
+      <div className="chess-shell">
+        <aside className="chess-navigation">
+          <button className="chess-brand" onClick={handleBackToList} aria-label="Chess home">
+            <img src="/blackknight.svg" width="33" height="40" alt="" />
+            <span>
+              chess<span className="brand-dot">.</span>
+              <small>with Login</small>
+            </span>
           </button>
+          <p className="navigation-label">YOUR CHESS CORNER</p>
+          <nav aria-label="Chess navigation">
+            <button
+              className={atLobby ? 'nav-item active' : 'nav-item'}
+              aria-current={atLobby ? 'page' : undefined}
+              onClick={handleBackToList}
+            >
+              <ChessIcon name="play" />
+              <span>Play</span>
+              <ChessIcon name="chevron" size={15} />
+            </button>
+            <button className="nav-item" aria-label="My games" onClick={showGames}>
+              <ChessIcon name="games" />
+              <span>Games</span>
+            </button>
+            <button className="nav-item" aria-label="My account" onClick={showAccount}>
+              <ChessIcon name="user" />
+              <span>Account</span>
+            </button>
+          </nav>
+          <div className="sidebar-note">
+            <ChessIcon name="shield" size={22} />
+            <p>
+              One account.
+              <br />
+              <strong>Every move is yours.</strong>
+            </p>
+            <span>Powered by Login</span>
+          </div>
+        </aside>
+        <div className="chess-main">
+          <header className="chess-topbar">
+            <h1>
+              {pageTitle}
+              <span>.</span>
+            </h1>
+            <div className="player-tools">
+              <button
+                className="player-pill"
+                onClick={showAccount}
+                aria-label={`Open account for ${passkey.username}`}
+              >
+                <span className="player-avatar">{initials}</span>
+                <span>
+                  {passkey.username}
+                  <small>Signed in with Login</small>
+                </span>
+              </button>
+              <button className="logout-button" aria-label="Log out" onClick={handleLogout}>
+                <ChessIcon name="logout" size={18} />
+                <span>Log out</span>
+              </button>
+            </div>
+          </header>
+          {notice && (
+            <div className="dashboard-notice" role="alert">
+              {notice}
+            </div>
+          )}
+          <div className="workspace-columns">
+            <main className="chess-workspace">
+              {onlineRoomId ? (
+                <OnlineChessboard
+                  key={onlineRoomId}
+                  sessionReady={sessionReady}
+                  roomId={onlineRoomId}
+                  onBackToList={handleBackToList}
+                  onRoomGone={handleRoomGone}
+                />
+              ) : (
+                <>
+                  {view === 'list' && (
+                    <GameList
+                      onNewGame={handleNewGame}
+                      onJoinGame={handleJoinGame}
+                      onResumeGame={handleResumeGame}
+                      onResumeOnline={(roomId) => navigate(`/game/${roomId}`)}
+                      sessionReady={sessionReady}
+                    />
+                  )}
+
+                  {view === 'setup' && (
+                    <GameSetup
+                      initialOpponent={setupOpponent}
+                      onStartLocal={handleStartLocal}
+                      onStartOnline={handleStartOnline}
+                      onJoinGame={handleJoinGame}
+                      onCancel={() => setView('list')}
+                      isServerConnected={sessionReady}
+                    />
+                  )}
+
+                  {view === 'join' && (
+                    <JoinGame
+                      sessionReady={sessionReady}
+                      onJoined={handleJoined}
+                      onCancel={() => setView('setup')}
+                    />
+                  )}
+
+                  {view === 'playing' && activeGame && (
+                    <Chessboard
+                      key={activeGame.id}
+                      initialState={activeGame}
+                      onSave={handleSave}
+                      onGameEnd={handleGameEnd}
+                      onBackToList={handleBackToList}
+                      engineColorProp={activeGame.engineColor}
+                    />
+                  )}
+                </>
+              )}
+            </main>
+            <aside className="player-sidebar">
+              <AccountPanel />
+            </aside>
+          </div>
+          <footer className="chess-footer">
+            <span>Good games. Your people. Your next move.</span>
+            <span>
+              Unaudited demo <b aria-hidden="true">·</b> Testnet only
+            </span>
+          </footer>
         </div>
-      </header>
-
-      <AccountPanel />
-
-      {notice && <div className="publish-toast error">{notice}</div>}
-
-      {onlineRoomId ? (
-        <OnlineChessboard
-          key={onlineRoomId}
-          sessionReady={sessionReady}
-          roomId={onlineRoomId}
-          onBackToList={handleBackToList}
-          onRoomGone={handleRoomGone}
-        />
-      ) : (
-        <>
-          {view === 'list' && (
-            <GameList
-              onNewGame={handleNewGame}
-              onResumeGame={handleResumeGame}
-              onResumeOnline={(roomId) => navigate(`/game/${roomId}`)}
-              sessionReady={sessionReady}
-            />
-          )}
-
-          {view === 'setup' && (
-            <GameSetup
-              onStartLocal={handleStartLocal}
-              onStartOnline={handleStartOnline}
-              onJoinGame={handleJoinGame}
-              onCancel={() => setView('list')}
-              isServerConnected={sessionReady}
-            />
-          )}
-
-          {view === 'join' && (
-            <JoinGame
-              sessionReady={sessionReady}
-              onJoined={handleJoined}
-              onCancel={() => setView('setup')}
-            />
-          )}
-
-          {view === 'playing' && activeGame && (
-            <Chessboard
-              key={activeGame.id}
-              initialState={activeGame}
-              onSave={handleSave}
-              onGameEnd={handleGameEnd}
-              onBackToList={handleBackToList}
-              engineColorProp={activeGame.engineColor}
-            />
-          )}
-        </>
-      )}
+      </div>
     </div>
   );
 }

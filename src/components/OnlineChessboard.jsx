@@ -157,7 +157,7 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
 
   // Build game status message
   let gameStatus = '';
-  let statusColor = '#ff6b6b';
+  let statusColor = '#9a563e';
 
   const whiteInCheck = game.board ? isKingInCheck(game.board, true) : false;
   const blackInCheck = game.board ? isKingInCheck(game.board, false) : false;
@@ -170,7 +170,7 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
       gameStatus = 'Black wins!';
     } else {
       gameStatus = 'Draw!';
-      statusColor = '#4CAF50';
+      statusColor = '#163415';
     }
   } else if (whiteInCheck && game.currentTurn === 'white') {
     gameStatus = 'White is in check!';
@@ -178,7 +178,7 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
     gameStatus = 'Black is in check!';
   } else if (!isMyTurn && game.status === 'playing') {
     gameStatus = "Opponent's turn...";
-    statusColor = '#2196F3';
+    statusColor = '#557244';
   }
 
   // Determine promotion piece color for dialog
