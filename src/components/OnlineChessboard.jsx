@@ -5,6 +5,8 @@ import Piece from '../Piece';
 import { needsPromotion, isKingInCheck } from '../moveValidation';
 import { playMoveSound, playCaptureSound, playNotifySound } from '../sounds';
 import { useOnlineGame } from '../hooks/useOnlineGame';
+import MatchPlayer from './MatchPlayer';
+import BoardCoordinates from './BoardCoordinates';
 
 async function gameAction(roomId, path, body = {}) {
   const response = await fetch(`/api/rooms/${roomId}/${path}`, {
@@ -12,7 +14,10 @@ async function gameAction(roomId, path, body = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error((await response.json()).error || 'Could not complete action');
+  if (!response.ok)
+    throw new Error(
+      (await response.json()).error || 'Could not complete action'
+    );
 }
 
 function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
@@ -25,15 +30,26 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
   const isMyTurn = game.myColor === game.currentTurn;
   const canInteract = game.status === 'playing' && isMyTurn && !promotionData;
   // A server update invalidates a selection made on the previous board.
-  const selectedFrom = canInteract && selection?.board === game.board ? selection.from : null;
+  const selectedFrom =
+    canInteract && selection?.board === game.board ? selection.from : null;
   const selectedPiece = selectedFrom === null ? null : selection.piece;
-  const validMoves = selectedFrom === null ? [] : game.getValidMovesForSquare(selectedFrom);
+  const validMoves =
+    selectedFrom === null ? [] : game.getValidMovesForSquare(selectedFrom);
 
   const handleMove = (squareIndex) => {
-    if (!canInteract || selectedFrom === null || !validMoves.includes(squareIndex)) return;
+    if (
+      !canInteract ||
+      selectedFrom === null ||
+      !validMoves.includes(squareIndex)
+    )
+      return;
 
     if (needsPromotion(selectedPiece, squareIndex)) {
-      setPromotionData({ from: selectedFrom, to: squareIndex, piece: selectedPiece });
+      setPromotionData({
+        from: selectedFrom,
+        to: squareIndex,
+        piece: selectedPiece,
+      });
       setSelection(null);
       return;
     }
@@ -56,7 +72,8 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
       return;
     }
     const piece = game.board[squareIndex];
-    const ownPiece = piece !== 0 && (piece > 0 ? 'white' : 'black') === game.myColor;
+    const ownPiece =
+      piece !== 0 && (piece > 0 ? 'white' : 'black') === game.myColor;
     if (squareIndex !== selectedFrom && ownPiece) {
       setSelection({ from: squareIndex, piece, board: game.board });
     } else {
@@ -90,7 +107,7 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
 
       game.submitMove(uci);
     },
-    [promotionData, game, isMyTurn],
+    [promotionData, game, isMyTurn]
   );
 
   const inviteCode = game.room?.inviteCode;
@@ -129,11 +146,17 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
         <p className="waiting-subtitle">Share this code with your opponent:</p>
         <div className="invite-code-display">
           <span className="invite-code">{inviteCode || '…'}</span>
-          <button className="copy-button" onClick={handleCopyInvite} disabled={!inviteCode}>
+          <button
+            className="copy-button"
+            onClick={handleCopyInvite}
+            disabled={!inviteCode}
+          >
             {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
-        <p className="waiting-hint">The game will start automatically when they join.</p>
+        <p className="waiting-hint">
+          The game will start automatically when they join.
+        </p>
         <div className="setup-actions">
           <button className="setup-back" onClick={onBackToList}>
             Cancel
@@ -183,28 +206,35 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
 
   // Determine promotion piece color for dialog
   const promoPieceIsWhite = promotionData ? promotionData.piece > 0 : true;
+  const bottomColor = game.myColor || 'white';
+  const topColor = bottomColor === 'white' ? 'black' : 'white';
+  const finished = game.status === 'finished';
+  const playerName = (color) =>
+    game.room?.[color] || (color === 'white' ? 'White' : 'Black');
 
   return (
     <>
-      <div className="game-controls">
-        <div className="engine-settings">
-          <button className="back-button" onClick={onBackToList}>
-            Back to Games
-          </button>
-          {game.room && (
-            <span className="online-info">
-              {game.room.white || '?'} vs {game.room.black || '?'}
-              {game.room.isStockfish && ` (Stockfish Lv${game.room.stockfishLevel})`}
-            </span>
-          )}
-        </div>
-      </div>
-
       {gameStatus && (
-        <div className="game-status" style={{ backgroundColor: statusColor }}>
+        <div
+          className={`game-status${
+            !game.gameResult && !whiteInCheck && !blackInCheck
+              ? ' turn-announcement'
+              : ''
+          }`}
+          role="status"
+          style={{ '--status-accent': statusColor }}
+        >
           {gameStatus}
         </div>
       )}
+      <MatchPlayer
+        name={playerName(topColor)}
+        color={topColor}
+        isYou={game.myColor === topColor}
+        active={game.currentTurn === topColor}
+        finished={finished}
+        position="opponent"
+      />
 
       {game.status === 'playing' && game.myColor && (
         <div className="game-actions">
@@ -256,7 +286,9 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
           )}
         </div>
       )}
-      <p className="board-instructions">Click a piece, then click a highlighted square to move.</p>
+      <p className="board-instructions">
+        Click a piece, then click a highlighted square to move.
+      </p>
       <div className="chessboard" role="group" aria-label="Chess board">
         {renderBoard(
           game.board,
@@ -264,9 +296,17 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
           validMoves,
           selectedFrom,
           canInteract,
-          handleSquareClick,
+          handleSquareClick
         )}
       </div>
+      <MatchPlayer
+        name={playerName(bottomColor)}
+        color={bottomColor}
+        isYou={game.myColor === bottomColor}
+        active={game.currentTurn === bottomColor}
+        finished={finished}
+        position="you"
+      />
 
       {promotionData && game.status === 'playing' && (
         <div className="promotion-overlay">
@@ -277,28 +317,44 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
                 aria-label="Promote to Queen"
                 onClick={() => handlePromotion(PIECE_TYPES.QUEEN)}
               >
-                <Piece type={promoPieceIsWhite ? PIECE_TYPES.QUEEN : -PIECE_TYPES.QUEEN} />
+                <Piece
+                  type={
+                    promoPieceIsWhite ? PIECE_TYPES.QUEEN : -PIECE_TYPES.QUEEN
+                  }
+                />
                 <span>Queen</span>
               </button>
               <button
                 aria-label="Promote to Rook"
                 onClick={() => handlePromotion(PIECE_TYPES.ROOK)}
               >
-                <Piece type={promoPieceIsWhite ? PIECE_TYPES.ROOK : -PIECE_TYPES.ROOK} />
+                <Piece
+                  type={
+                    promoPieceIsWhite ? PIECE_TYPES.ROOK : -PIECE_TYPES.ROOK
+                  }
+                />
                 <span>Rook</span>
               </button>
               <button
                 aria-label="Promote to Bishop"
                 onClick={() => handlePromotion(PIECE_TYPES.BISHOP)}
               >
-                <Piece type={promoPieceIsWhite ? PIECE_TYPES.BISHOP : -PIECE_TYPES.BISHOP} />
+                <Piece
+                  type={
+                    promoPieceIsWhite ? PIECE_TYPES.BISHOP : -PIECE_TYPES.BISHOP
+                  }
+                />
                 <span>Bishop</span>
               </button>
               <button
                 aria-label="Promote to Knight"
                 onClick={() => handlePromotion(PIECE_TYPES.KNIGHT)}
               >
-                <Piece type={promoPieceIsWhite ? PIECE_TYPES.KNIGHT : -PIECE_TYPES.KNIGHT} />
+                <Piece
+                  type={
+                    promoPieceIsWhite ? PIECE_TYPES.KNIGHT : -PIECE_TYPES.KNIGHT
+                  }
+                />
                 <span>Knight</span>
               </button>
             </div>
@@ -309,10 +365,19 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
   );
 }
 
-function renderBoard(board, myColor, validMovesList, selectedFrom, canInteract, onSquareClick) {
+function renderBoard(
+  board,
+  myColor,
+  validMovesList,
+  selectedFrom,
+  canInteract,
+  onSquareClick
+) {
   const boardElements = [];
-  const rows = myColor === 'black' ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
-  const colOrder = myColor === 'black' ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
+  const rows =
+    myColor === 'black' ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
+  const colOrder =
+    myColor === 'black' ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
 
   for (const y of rows) {
     const row = [];
@@ -321,9 +386,9 @@ function renderBoard(board, myColor, validMovesList, selectedFrom, canInteract, 
       const piece = board[squareIndex];
       const isLight = (x + y) % 2 === 0;
       const isValidMove = validMovesList.includes(squareIndex);
-      const squareClass = `square ${isLight ? 'light' : 'dark'}${isValidMove ? ' valid-move' : ''}${
-        selectedFrom === squareIndex ? ' selected' : ''
-      }`;
+      const squareClass = `square ${isLight ? 'light' : 'dark'}${
+        isValidMove ? ' valid-move' : ''
+      }${selectedFrom === squareIndex ? ' selected' : ''}`;
 
       row.push(
         <button
@@ -337,14 +402,15 @@ function renderBoard(board, myColor, validMovesList, selectedFrom, canInteract, 
           onClick={() => onSquareClick(squareIndex)}
         >
           {piece !== 0 && <Piece type={piece} />}
-        </button>,
+          <BoardCoordinates x={x} y={y} orientation={myColor || 'white'} />
+        </button>
       );
     }
 
     boardElements.push(
       <div key={y} className="row">
         {row}
-      </div>,
+      </div>
     );
   }
 

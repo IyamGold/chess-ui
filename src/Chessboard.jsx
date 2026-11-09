@@ -5,9 +5,13 @@ import Piece from './Piece';
 import { playMoveSound, playCaptureSound, playNotifySound } from './sounds';
 import { isValidPawnMove, getEnPassantTarget, needsPromotion, indexToRowCol, isValidRookMove, isValidKnightMove, isValidBishopMove, isValidQueenMove, isValidKingMove, isKingInCheck, isCheckmate, isInsufficientMaterial, generatePositionKey } from './moveValidation';
 import ChessEngine from './chessEngine';
+import MatchPlayer from './components/MatchPlayer';
+import BoardCoordinates from './components/BoardCoordinates';
+import { useLogin } from './login/context';
 
-function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColorProp }) {
+function Chessboard({ initialState, onSave, onGameEnd, engineColorProp }) {
   const s = initialState || {};
+  const { username } = useLogin();
 
   const [board, setBoard] = useState(() => s.board || INITIAL_BOARD);
   const [selectedPiece, setSelectedPiece] = useState(null);
@@ -27,6 +31,7 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
   const [isEngineThinking, setIsEngineThinking] = useState(false);
 
   const engineColor = engineColorProp || s.engineColor || 'black';
+  const myColor = engineColor === 'white' ? 'black' : 'white';
 
   const engineRef = useRef(null);
   const lastMoveRef = useRef(null);
@@ -476,10 +481,12 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
   const renderBoard = () => {
     const boardElements = [];
 
-    for (let y = 0; y < rows; y++) {
+    for (let rowIndex = 0; rowIndex < rows; rowIndex++) {
+      const y = myColor === 'black' ? rows - 1 - rowIndex : rowIndex;
       const row = [];
 
-      for (let x = 0; x < cols; x++) {
+      for (let colIndex = 0; colIndex < cols; colIndex++) {
+        const x = myColor === 'black' ? cols - 1 - colIndex : colIndex;
         const squareIndex = y * 8 + x;
         const piece = board[squareIndex];
         const isLight = (x + y) % 2 === 0;
@@ -497,6 +504,7 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
             onClick={() => handleSquareClick(squareIndex)}
           >
             {piece !== 0 && <Piece type={piece} />}
+            <BoardCoordinates x={x} y={y} orientation={myColor} />
           </button>
         );
       }
@@ -549,25 +557,25 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
     gameStatus = 'Black is in check!';
   }
 
+  const finished = Boolean(getGameResult(board, halfMoveClock, positionHistory));
+
   return (
     <>
-      <div className="game-controls">
-        <div className="engine-settings">
-          <button className="back-button" onClick={onBackToList}>Back to Games</button>
-          {isEngineThinking && <span className="thinking">Engine thinking...</span>}
-        </div>
-      </div>
 
       {gameStatus && (
-        <div className="game-status" style={{ backgroundColor: statusColor }}>
+        <div className="game-status" role="status" style={{ '--status-accent': statusColor }}>
           {gameStatus}
         </div>
       )}
 
+      <MatchPlayer name="Stockfish" color={engineColor} active={currentTurn === engineColor}
+        finished={finished} thinking={isEngineThinking} computer position="opponent" />
       <p className="board-instructions">Click a piece, then click a highlighted square to move.</p>
       <div className="chessboard" role="group" aria-label="Chess board">
         {renderBoard()}
       </div>
+      <MatchPlayer name={username} color={myColor} isYou active={currentTurn === myColor}
+        finished={finished} position="you" />
 
       {promotionSquare !== null && (
         <div className="promotion-overlay">

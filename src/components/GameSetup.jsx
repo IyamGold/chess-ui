@@ -26,7 +26,7 @@ function GameSetup({
 
   return (
     <div className="new-game-setup" aria-busy={starting}>
-      <p className="card-eyebrow">MAKE IT YOUR GAME</p>
+      <p className="card-eyebrow">Make it your game</p>
       <h2>New Game</h2>
       <p className="setup-intro">Choose your opponent and the side you’d like to play.</p>
 

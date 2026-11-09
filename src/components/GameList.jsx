@@ -136,7 +136,7 @@ ${history.join('\n')}
     <div className="game-list dashboard-games">
       <section className="lobby-hero" aria-labelledby="lobby-title">
         <div className="lobby-hero-copy">
-          <p className="hero-eyebrow">THE BOARD IS YOURS</p>
+          <p className="hero-eyebrow">The board is yours</p>
           <h2 id="lobby-title">
             Your next move
             <br />

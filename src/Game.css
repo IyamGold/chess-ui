@@ -1,0 +1,569 @@
+/* Focused gameplay shell shared by online and local Stockfish games. */
+.app.chess-app.match-view {
+  position: relative;
+  background: #000;
+  color: #fff;
+  --ink: #fff;
+  --muted: #a3a3aa;
+  --line: #303034;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-weight: 400;
+}
+.match-view .chess-navigation,
+.match-view .chess-topbar,
+.match-view .mobile-logout {
+  display: none;
+}
+.match-view .chess-shell {
+  display: block;
+  max-width: none;
+  min-height: 100svh;
+}
+.match-view .chess-main {
+  padding: 0;
+}
+.match-view .workspace-columns {
+  display: block;
+}
+.match-view .chess-workspace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100svh - 36px);
+  padding: 96px 24px 52px;
+}
+.match-view .chess-workspace .chessboard {
+  order: 1;
+  flex: none;
+  width: min(560px, max(320px, calc(100svh - 380px)), calc(100vw - 48px));
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  margin: 0;
+  background: linear-gradient(135deg, #19191b, #080809) padding-box,
+    linear-gradient(135deg, #ffffff68, #ffffff12 60%, #ffffff30) border-box;
+  box-shadow: inset 0 1px 0 #ffffff10, 0 16px 48px #0009;
+  overflow: hidden;
+}
+.chess-app .chessboard .row {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+.chess-app .chessboard .row:first-child {
+  border-radius: 6px 6px 0 0;
+  overflow: hidden;
+}
+.chess-app .chessboard .row:last-child {
+  border-radius: 0 0 6px 6px;
+  overflow: hidden;
+}
+.chess-app .chessboard .square {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.chess-app .chessboard .square.light {
+  background: #e9edcd;
+}
+.chess-app .chessboard .square.dark {
+  background: #608d48;
+}
+.chess-app .chessboard .piece-svg {
+  width: 85%;
+  height: 85%;
+  filter: none;
+  transition: none;
+}
+.chess-app .chessboard .chess-piece:hover .piece-svg {
+  transform: none;
+}
+.chess-app .chessboard .square.selected {
+  background: #add15b;
+  box-shadow: inset 0 0 0 2px #cfff88;
+}
+.chess-app .chessboard .square.valid-move::after {
+  width: 24%;
+  height: 24%;
+  background: #203c2a80;
+  border: 0;
+}
+.chess-app .chessboard .square.valid-move:has(.chess-piece)::after {
+  width: 88%;
+  height: 88%;
+  background: transparent;
+  border: 3px solid #ceff86;
+  border-radius: 50%;
+}
+.chess-app .chessboard .square:focus-visible {
+  outline: 3px solid #ceff86;
+  outline-offset: -3px;
+}
+.board-coordinate {
+  position: absolute;
+  z-index: 2;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 500;
+  pointer-events: none;
+}
+.board-coordinate.file {
+  bottom: 3px;
+  right: 4px;
+}
+.board-coordinate.rank {
+  top: 3px;
+  left: 4px;
+}
+.square.light .board-coordinate {
+  color: #4a7137;
+}
+.square.dark .board-coordinate {
+  color: #f0f3d9;
+}
+.match-toolbar {
+  position: absolute;
+  top: 28px;
+  left: 36px;
+  right: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 5;
+}
+.match-menu {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border: 1px solid #353539;
+  border-radius: 28px;
+  padding: 8px 14px 8px 8px;
+  background: linear-gradient(145deg, #18181b, #09090a);
+  box-shadow: inset 0 1px 0 #ffffff16;
+  color: #b5b5be;
+  min-height: 44px;
+}
+.match-menu .menu-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #ff6634;
+  color: #100b08;
+}
+.match-menu svg {
+  width: 24px;
+  height: 24px;
+}
+.wallet-handoff {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #333339;
+  border-radius: 26px;
+  padding: 7px 14px 7px 7px;
+  background: linear-gradient(135deg, #16161a, #080809);
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+  box-shadow: inset 0 1px 0 #ffffff13;
+}
+.wallet-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #1f64ff;
+  color: #fff;
+  box-shadow: inset 0 1px 0 #ffffff70;
+}
+.wallet-mark svg {
+  width: 17px;
+  height: 17px;
+}
+.match-player {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(560px, max(320px, calc(100svh - 380px)), calc(100vw - 48px));
+  padding: 0 2px;
+}
+.match-player--opponent {
+  order: 0;
+  margin-bottom: 12px;
+}
+.match-player--you {
+  order: 2;
+  margin-top: 12px;
+}
+.match-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  border: 1px solid #ffffff45;
+  background: linear-gradient(145deg, #3c3c41, #19191c);
+  font-size: 14px;
+  color: #fff;
+}
+.match-avatar--opponent {
+  background: linear-gradient(145deg, #f6f6f2, #c8c8c8);
+  color: #29292c;
+}
+.match-name {
+  min-width: 0;
+  flex: 1;
+}
+.match-name strong {
+  display: block;
+  font-size: 19px;
+  line-height: 1.25;
+  font-weight: 400;
+  color: #fff;
+}
+.match-name small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #a3a3aa;
+  margin-top: 4px;
+}
+.turn-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #a3ff59;
+}
+.match-clock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 400;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  color: #a0a0a7;
+  border: 1px solid #252528;
+  border-radius: 12px;
+  padding: 7px 12px;
+  background: #0c0c0e;
+}
+.match-clock.active {
+  background: #fff;
+  color: #101012;
+  border-color: #fff;
+}
+.chess-app .game-actions {
+  order: 3;
+  margin: 24px 0 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.chess-app .game-actions button {
+  font-size: 12px;
+  font-weight: 400;
+  color: #c9c9cf;
+  background: #111114;
+  border: 1px solid #303035;
+  border-radius: 22px;
+  min-height: 36px;
+  padding: 8px 16px;
+}
+.chess-app .game-actions button:first-child {
+  color: #ff6f82;
+}
+.chess-app .board-instructions {
+  order: 4;
+  font-size: 11px;
+  color: #a3a3aa;
+  line-height: 1.5;
+  margin: 16px 0 0;
+  text-align: center;
+}
+.match-footer {
+  position: static;
+  padding: 0 36px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: #9999a1;
+}
+.match-footer strong {
+  font-weight: 500;
+  color: #bdbdc5;
+}
+@media (max-width: 760px) {
+  .match-toolbar {
+    top: 20px;
+    left: 16px;
+    right: 16px;
+  }
+  .match-menu {
+    gap: 12px;
+    padding-right: 12px;
+  }
+  .wallet-handoff {
+    font-size: 12px;
+    padding-right: 12px;
+    gap: 8px;
+  }
+  .match-view .chess-workspace {
+    padding: 108px 12px 84px;
+    min-height: 100svh;
+    justify-content: flex-start;
+  }
+  .match-view .chess-workspace .chessboard,
+  .match-player {
+    width: calc(100vw - 24px);
+    max-width: 520px;
+  }
+  .match-view .chess-workspace .chessboard {
+    padding: 5px;
+    border-radius: 12px;
+  }
+  .match-player {
+    padding: 0 4px;
+    gap: 10px;
+  }
+  .match-player--opponent {
+    margin-bottom: 12px;
+  }
+  .match-player--you {
+    margin-top: 12px;
+  }
+  .match-avatar {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    font-size: 12px;
+  }
+  .match-name strong {
+    font-size: 17px;
+  }
+  .match-name small {
+    font-size: 10px;
+  }
+  .match-clock {
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 10px;
+  }
+  .chess-app .game-actions {
+    margin-top: 24px;
+  }
+  .match-footer {
+    position: static;
+    padding: 12px 16px 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    text-align: center;
+    font-size: 10px;
+  }
+  .chess-app .board-instructions {
+    font-size: 10px;
+  }
+  .board-coordinate {
+    font-size: 8px;
+  }
+}
+@media (max-width: 350px) {
+  .match-view .chess-workspace {
+    padding-top: 96px;
+    padding-bottom: 36px;
+  }
+  .match-name strong {
+    font-size: 16px;
+  }
+  .match-clock {
+    font-size: 12px;
+  }
+}
+/* Keep light pieces readable on the light squares, as in Gold's reference. */
+.chess-app .chessboard img[src*='white'] {
+  filter: grayscale(1) brightness(1.08) drop-shadow(0.65px 0 0 #454545)
+    drop-shadow(-0.65px 0 0 #454545) drop-shadow(0 0.65px 0 #454545)
+    drop-shadow(0 -0.65px 0 #454545);
+}
+.chess-app .chessboard img:not([src*='white']) {
+  filter: grayscale(1) brightness(1.12);
+}
+@media (max-width: 760px) {
+  .match-view .chess-workspace {
+    min-height: calc(100svh - 36px);
+  }
+  .match-footer {
+    padding: 0 16px 16px;
+    line-height: 20px;
+  }
+}
+.match-menu-shell {
+  position: relative;
+}
+.match-menu-options {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  min-width: 208px;
+  padding: 8px;
+  background: #141418;
+  border: 1px solid #ffffff30;
+  border-radius: 20px;
+  box-shadow: 0 16px 40px #0008;
+}
+.chess-app .match-menu-options button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: #fff;
+  padding: 12px;
+  font-size: 13px;
+  text-align: left;
+}
+.match-menu-options button:hover {
+  background: #29292f;
+}
+.match-menu-options svg {
+  width: 18px;
+  height: 18px;
+}
+.chess-app .match-menu-options .menu-logout {
+  color: #ff8293;
+}
+.match-player {
+  flex-shrink: 0;
+}
+.you-label {
+  color: #aaaab2;
+  font-size: 13px;
+}
+.match-view .chess-workspace > .game-status {
+  order: -1;
+  width: min(560px, calc(100vw - 48px));
+  position: static;
+  transform: none;
+  background: #1c1c22;
+  color: #fff;
+  border: 1px solid #595963;
+  border-left: 3px solid var(--status-accent, #a3ff59);
+  border-radius: 12px;
+  margin: 0 0 20px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: none;
+  animation: none;
+}
+.chess-app .promotion-dialog {
+  width: min(94vw, 520px);
+  padding: 24px;
+  background: #141418;
+  color: #fff;
+  border: 1px solid #ffffff40;
+  border-radius: 24px;
+}
+.chess-app .promotion-dialog h3 {
+  font-size: 20px;
+  font-weight: 400;
+  color: #fff;
+}
+.chess-app .promotion-choices {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.chess-app .promotion-choices button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  background: #2c3029;
+  color: #fff;
+  border: 1px solid #ffffff40;
+  border-radius: 12px;
+  padding: 12px 4px;
+}
+.chess-app .promotion-choices button:hover {
+  border-color: #a3ff59;
+  transform: none;
+}
+.chess-app .promotion-choices .chess-piece {
+  width: 48px;
+  height: 48px;
+}
+.chess-app .promotion-choices img {
+  width: 90%;
+  height: 90%;
+  filter: grayscale(1) drop-shadow(0 0 1px #000);
+}
+.chess-app .promotion-choices span {
+  font-size: 11px;
+}
+@media (max-width: 760px) {
+  .match-view .chess-workspace > .game-status {
+    width: calc(100vw - 24px);
+  }
+  .match-view .dashboard-notice {
+    margin: 88px 12px 0;
+  }
+  .match-clock svg {
+    display: none;
+  }
+  .you-label {
+    font-size: 12px;
+  }
+}
+/* Turn state is already visible in the player row; announce it without a duplicate banner. */
+.match-view .chess-workspace > .game-status.turn-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.match-view .chess-workspace > .game-status {
+  font-weight: 400;
+}
+.match-name strong {
+  overflow-wrap: anywhere;
+}
+.match-name small {
+  flex-wrap: wrap;
+}
+.match-view .dashboard-notice {
+  margin: 88px 36px 0;
+}
+@media (max-width: 760px) {
+  .match-view .dashboard-notice {
+    margin: 88px 12px 0;
+  }
+}
+@media (max-width: 760px) {
+  .chess-app .game-actions button {
+    min-height: 44px;
+  }
+}
