@@ -525,7 +525,7 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
   const insufficientMaterial = isInsufficientMaterial(board);
 
   let gameStatus = '';
-  let statusColor = '#ff6b6b';
+  let statusColor = '#9a563e';
 
   if (whiteCheckmate && whiteInCheck) {
     gameStatus = 'Checkmate! Black wins!';
@@ -533,13 +533,13 @@ function Chessboard({ initialState, onSave, onGameEnd, onBackToList, engineColor
     gameStatus = 'Checkmate! White wins!';
   } else if (insufficientMaterial) {
     gameStatus = 'Draw - Insufficient material!';
-    statusColor = '#4CAF50';
+    statusColor = '#163415';
   } else if (fiftyMoveRule) {
     gameStatus = 'Draw - 50 move rule!';
-    statusColor = '#4CAF50';
+    statusColor = '#163415';
   } else if (threefoldRepetition) {
     gameStatus = 'Draw - Threefold repetition!';
-    statusColor = '#4CAF50';
+    statusColor = '#163415';
   } else if (whiteStalemate || blackStalemate) {
     gameStatus = 'Stalemate! Game is a draw!';
     statusColor = '#ffa500';

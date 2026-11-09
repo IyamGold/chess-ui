@@ -21,7 +21,6 @@ function JoinGame({ sessionReady, onJoined, onCancel }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-
         },
         body: JSON.stringify({ inviteCode: code }),
       });
@@ -36,42 +35,54 @@ function JoinGame({ sessionReady, onJoined, onCancel }) {
 
       onJoined(data.roomId, data.color);
     } catch {
-      setError('Network error — is the server running?');
+      setError('Couldn’t reach the game. Please try again.');
       setLoading(false);
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleJoin();
-  };
-
   return (
-    <div className="new-game-setup">
+    <form
+      className="new-game-setup"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!loading) void handleJoin();
+      }}
+    >
+      <p className="card-eyebrow">A FRIENDLY CHALLENGE</p>
       <h2>Join Game</h2>
+      <p className="setup-intro">
+        Good company makes a good game. Enter your friend’s invite code.
+      </p>
 
       <div className="join-form">
-        <label>Invite Code:</label>
+        <label htmlFor="invite-code">Invite Code</label>
         <input
+          id="invite-code"
           type="text"
           className="join-input"
           value={inviteCode}
           onChange={(e) => setInviteCode(e.target.value)}
-          onKeyDown={handleKeyDown}
           placeholder="e.g. ROOK42"
           autoFocus
           maxLength={10}
         />
       </div>
 
-      {error && <div className="join-error">{error}</div>}
+      {error && (
+        <div className="join-error" role="alert">
+          {error}
+        </div>
+      )}
 
       <div className="setup-actions">
-        <button className="setup-back" onClick={onCancel}>Cancel</button>
-        <button className="setup-start" onClick={handleJoin} disabled={loading}>
+        <button type="button" className="setup-back" onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="submit" className="setup-start" disabled={loading || !sessionReady}>
           {loading ? 'Joining...' : 'Join'}
         </button>
       </div>
-    </div>
+    </form>
   );
 }
 
