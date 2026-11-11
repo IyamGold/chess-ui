@@ -109,7 +109,7 @@ async function main() {
   const server = http.createServer(app);
 
   // Setup WebSocket
-  const { broadcast } = setupWebSocket(server, db, login);
+  const { broadcast, subscribe } = setupWebSocket(server, db, login);
 
   // Auth middleware instance
   const auth = login ? login.requireSession : authMiddleware(db);
@@ -133,6 +133,7 @@ async function main() {
   const roomsRouter = createRoomsRouter(db, {
     broadcast,
     clocks,
+    subscribe,
     getStockfishPlayer: () => stockfishPlayer,
   });
   app.use('/api/rooms/:id/move', auth, moveLimiter);
@@ -142,6 +143,9 @@ async function main() {
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'ok',
+      gameProtocol: 2,
+      timeControl: '10+0',
+      events: 'sse',
       stockfish: !!stockfishPlayer,
     });
   });

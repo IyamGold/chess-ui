@@ -23,7 +23,7 @@ function generateInviteCode(db) {
   return uuidv4().slice(0, 8).toUpperCase();
 }
 
-function createRoomsRouter(db, { broadcast, getStockfishPlayer, clocks = createClocks(db, { broadcast }) }) {
+function createRoomsRouter(db, { broadcast, subscribe, getStockfishPlayer, clocks = createClocks(db, { broadcast }) }) {
   const router = express.Router();
 
   // Prepared statements
@@ -139,7 +139,10 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer, clocks = createC
     res.status(201).json({
       roomId: Number(roomId),
       inviteCode,
-      color: chosenColor
+      color: chosenColor,
+      clock: clocks.read(Number(roomId)),
+      timeControl: '10+0',
+      gameProtocol: 2
     });
   });
 
@@ -287,6 +290,15 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer, clocks = createC
       legalMoves,
       board: gameState.board
     });
+  });
+
+  // Native EventSource reconnects; each connection is authenticated by router middleware.
+  router.get('/:id/events', (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || !db.prepare('SELECT id FROM rooms WHERE id=?').get(id))
+      return res.status(404).json({ error: 'Room not found' });
+    if (!subscribe) return res.status(503).json({ error: 'Live updates unavailable' });
+    subscribe(id, req, res);
   });
 
   // POST /api/rooms/:id/move — submit a move
@@ -529,9 +541,12 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer, clocks = createC
     }
   });
 
-  // Async Stockfish move
+  // At most one queued/running engine job per room.
+  const pendingEngineRooms = new Set();
   function triggerStockfishMove(roomId) {
-    setTimeout(async () => {
+    if (pendingEngineRooms.has(roomId)) return;
+    pendingEngineRooms.add(roomId);
+    queueMicrotask(async () => {
       try {
         const sfPlayer = getStockfishPlayer();
         if (!sfPlayer) return;
@@ -605,8 +620,11 @@ function createRoomsRouter(db, { broadcast, getStockfishPlayer, clocks = createC
         }
       } catch (err) {
         console.error('Stockfish move error:', err);
+        broadcast(roomId, 'engineError', { error: 'The computer could not complete its move. Please start a new game.' });
+      } finally {
+        pendingEngineRooms.delete(roomId);
       }
-    }, 100); // Small delay to let the HTTP response complete first
+    });
   }
 
   return router;

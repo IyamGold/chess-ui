@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { GAME_SERVER_URL } from '../config';
+import { requestJSON } from '../api';
 
 function JoinGame({ sessionReady, onJoined, onCancel }) {
   const [inviteCode, setInviteCode] = useState('');
@@ -17,7 +18,7 @@ function JoinGame({ sessionReady, onJoined, onCancel }) {
     setLoading(true);
 
     try {
-      const resp = await fetch(`${GAME_SERVER_URL}/api/rooms/join`, {
+      const data = await requestJSON(`${GAME_SERVER_URL}/api/rooms/join`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -25,17 +26,13 @@ function JoinGame({ sessionReady, onJoined, onCancel }) {
         body: JSON.stringify({ inviteCode: code }),
       });
 
-      const data = await resp.json();
-
-      if (!resp.ok) {
-        setError(data.error || 'Failed to join room');
-        setLoading(false);
-        return;
-      }
-
       onJoined(data.roomId, data.color);
-    } catch {
-      setError('Couldn’t reach the game. Please try again.');
+    } catch (err) {
+      setError(
+        err.name === 'AbortError'
+          ? 'Joining timed out. Please try again.'
+          : err.message
+      );
       setLoading(false);
     }
   };
@@ -78,7 +75,11 @@ function JoinGame({ sessionReady, onJoined, onCancel }) {
         <button type="button" className="setup-back" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="setup-start" disabled={loading || !sessionReady}>
+        <button
+          type="submit"
+          className="setup-start"
+          disabled={loading || !sessionReady}
+        >
           {loading ? 'Joining...' : 'Join'}
         </button>
       </div>

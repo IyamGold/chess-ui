@@ -6,7 +6,10 @@ export function LoginProvider({ children }) {
     [serviceError, setServiceError] = useState(null);
   const refresh = async () => {
     try {
-      const response = await fetch('/api/login/session', { cache: 'no-store' });
+      const response = await fetch('/api/login/session', {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15000),
+      });
       if (
         !response.headers.get('content-type')?.includes('application/json') ||
         (!response.ok && response.status !== 401)
@@ -14,14 +17,18 @@ export function LoginProvider({ children }) {
         throw new Error('Login service unavailable');
       }
       const data = await response.json();
-      if (response.ok && (!Number.isSafeInteger(data?.id) || typeof data?.username !== 'string')) {
+      if (
+        response.ok &&
+        (!Number.isSafeInteger(data?.id) || typeof data?.username !== 'string')
+      ) {
         throw new Error('Invalid game session');
       }
       setProfile(response.ok ? data : null);
       setServiceError(null);
     } catch {
-      setProfile(null);
-      setServiceError('Sign-in is temporarily unavailable. Please try again shortly.');
+      setServiceError(
+        'Sign-in is temporarily unavailable. Please try again shortly.'
+      );
     } finally {
       setLoading(false);
     }
@@ -34,6 +41,7 @@ export function LoginProvider({ children }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
+      signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) throw new Error('Sign out failed. Try again.');
     setProfile(null);

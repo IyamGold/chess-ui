@@ -449,6 +449,7 @@
   font-size: 13px;
 }
 .match-view .chess-workspace > .game-status {
+  z-index: auto;
   order: -1;
   width: min(560px, calc(100vw - 48px));
   position: static;
@@ -581,4 +582,29 @@
     font-size: 25px;
     min-width: 86px;
   }
+}
+
+/* Connection messages stay in the board flow so the game menu remains usable. */
+.match-view .connection-status {
+  order: -2;
+  width: min(560px, 100%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid #353539;
+  border-radius: 12px;
+  background: #141418;
+  color: #dedee3;
+  font-size: 13px;
+}
+.match-view .connection-status button {
+  padding: 6px 12px;
+  color: #a3ff59;
+  background: #242427;
+  border: 1px solid #48484d;
+  border-radius: 8px;
 }

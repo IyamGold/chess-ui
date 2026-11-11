@@ -11,6 +11,25 @@ function setupWebSocket(server, db, login = null) {
 
   // Track clients per room: Map<roomId, Set<{ ws, userId, username, role }>>
   const rooms = new Map();
+  const streams = new Map();
+  function subscribe(roomId, req, res) {
+    if (!streams.has(roomId)) streams.set(roomId, new Set());
+    const client = { req, res, userId: req.user.id };
+    streams.get(roomId).add(client);
+    res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-store, no-transform', 'X-Accel-Buffering': 'no' });
+    res.flushHeaders();
+    res.write('retry: 1500\n\ndata: {"event":"ready"}\n\n');
+    const heartbeat = setInterval(() => {
+      if (login && !login.session(req)) return res.end();
+      if (!res.write(': heartbeat\n\n')) res.end();
+    }, 15000);
+    heartbeat.unref();
+    res.on('close', () => {
+      clearInterval(heartbeat);
+      streams.get(roomId)?.delete(client);
+      if (!streams.get(roomId)?.size) streams.delete(roomId);
+    });
+  }
 
   const findUserByTokenHash = db.prepare(
     'SELECT id, username, token_expires_at FROM users WHERE token_hash = ?'
@@ -100,7 +119,12 @@ function setupWebSocket(server, db, login = null) {
     });
   }, HEARTBEAT_INTERVAL_MS);
 
+  heartbeat.unref();
   wss.on('close', () => clearInterval(heartbeat));
+  server.on('close', () => {
+    for (const clients of streams.values()) for (const client of clients) client.res.end();
+    wss.close();
+  });
 
   // Handle new connections
   wss.on('connection', (ws, { roomId, user, role, request }) => {
@@ -158,6 +182,10 @@ function setupWebSocket(server, db, login = null) {
   // Broadcast to all clients in a room, optionally excluding a user
   function broadcast(roomId, event, data, excludeUserId) {
     const roomClients = rooms.get(roomId);
+    for (const client of streams.get(roomId) || []) {
+      if (login && !login.session(client.req)) { client.res.end(); continue; }
+      if (!client.res.write(`data: ${JSON.stringify({ event, data })}\n\n`)) client.res.end();
+    }
     if (!roomClients) return;
 
     const message = JSON.stringify({ event, data });
@@ -171,7 +199,7 @@ function setupWebSocket(server, db, login = null) {
     }
   }
 
-  return { broadcast };
+  return { broadcast, subscribe };
 }
 
 module.exports = { setupWebSocket };

@@ -2,118 +2,126 @@ const { Worker } = require('worker_threads');
 const path = require('path');
 
 class StockfishPlayer {
-  constructor() {
+  constructor({
+    thinkMs = 150,
+    timeoutMs = 10000,
+    workerFactory = () =>
+      new Worker(path.join(__dirname, 'stockfishWorker.js')),
+  } = {}) {
     this.worker = null;
     this.ready = false;
     this.queue = Promise.resolve();
+    this.thinkMs = thinkMs;
+    this.timeoutMs = timeoutMs;
+    this.workerFactory = workerFactory;
+    this.closed = false;
+    this.cancel = null;
   }
 
   async init() {
-    return new Promise((resolve, reject) => {
-      try {
-        this.worker = new Worker(path.join(__dirname, 'stockfishWorker.js'));
-      } catch (err) {
-        reject(new Error('Failed to start Stockfish worker: ' + err.message));
-        return;
-      }
-
-      this.worker.on('error', (err) => {
-        console.error('Stockfish worker error:', err.message);
+    if (this.closed) throw new Error('Stockfish stopped');
+    const worker = this.workerFactory();
+    this.worker = worker;
+    // Handle idle worker failures as well as failures during a pending search.
+    const unavailable = () => {
+      if (this.worker === worker) {
         this.ready = false;
-        reject(err);
-      });
+        this.worker = null;
+      }
+    };
+    worker.on('error', unavailable);
+    worker.on('exit', unavailable);
+    await this.waitFor(worker, 'readyok', () => {
+      worker.postMessage('uci');
+      worker.postMessage('isready');
+    });
+    this.ready = true;
+  }
 
-      let initBuffer = '';
-      const onMessage = (data) => {
-        initBuffer += data;
-        if (initBuffer.includes('readyok')) {
-          this.worker.removeListener('message', onMessage);
-          this.ready = true;
-          resolve();
-        }
+  // A failed worker is discarded before another queued position can use it.
+  // Otherwise a late bestmove from a timed-out search can belong to the wrong game.
+  waitFor(worker, marker, send) {
+    return new Promise((resolve, reject) => {
+      const finish = (error, value) => {
+        clearTimeout(timer);
+        worker.removeListener('message', message);
+        worker.removeListener('error', failed);
+        worker.removeListener('exit', exited);
+        this.cancel = null;
+        if (error) {
+          this.ready = false;
+          if (this.worker === worker) this.worker = null;
+          // Keep an error listener until termination settles.
+          worker.on('error', () => {});
+          void worker.terminate();
+          reject(error);
+        } else resolve(value);
       };
-
-      this.worker.on('message', onMessage);
-
-      // Initialize UCI protocol
-      this.worker.postMessage('uci');
-      this.worker.postMessage('isready');
-
-      // Timeout after 10 seconds (WASM init can be slower than native)
-      setTimeout(() => {
-        if (!this.ready) {
-          this.worker.removeListener('message', onMessage);
-          reject(new Error('Stockfish initialization timed out'));
-        }
-      }, 10000);
+      const message = (value) => {
+        const text = String(value);
+        if (text.includes(marker)) finish(null, text);
+      };
+      const failed = (error) => finish(error);
+      const exited = () => finish(new Error('Stockfish worker exited'));
+      const timer = setTimeout(
+        () => finish(new Error('Stockfish response timed out')),
+        this.timeoutMs
+      );
+      worker.on('message', message);
+      worker.once('error', failed);
+      worker.once('exit', exited);
+      this.cancel = () => finish(new Error('Stockfish stopped'));
+      try {
+        send();
+      } catch (error) {
+        finish(error);
+      }
     });
   }
 
   getBestMove(fen, skillLevel = 10) {
-    // A single UCI worker must finish one search before another game uses it.
-    const task = this.queue.then(() => this.search(fen, skillLevel));
+    const task = this.queue.then(async () => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          if (this.closed) throw new Error('Stockfish stopped');
+          if (!this.ready) await this.init();
+          const worker = this.worker;
+          const text = await this.waitFor(worker, 'bestmove', () => {
+            worker.postMessage(
+              `setoption name Skill Level value ${Math.max(
+                0,
+                Math.min(20, skillLevel)
+              )}`
+            );
+            worker.postMessage('ucinewgame');
+            worker.postMessage(`position fen ${fen}`);
+            worker.postMessage(`go movetime ${this.thinkMs}`);
+          });
+          const match = text.match(
+            /bestmove ([a-h][1-8])([a-h][1-8])([qrbn])?/
+          );
+          return match
+            ? { from: match[1], to: match[2], promotion: match[3] || null }
+            : null;
+        } catch (error) {
+          if (this.closed || attempt === 1) throw error;
+          // Retry this game's position once on a fresh worker, within its queue slot.
+        }
+      }
+    });
     this.queue = task.catch(() => {});
     return task;
   }
 
-  async search(fen, skillLevel = 10) {
-    if (!this.ready || !this.worker) {
-      throw new Error('Stockfish not initialized');
-    }
-
-    return new Promise((resolve, reject) => {
-      // Set skill level
-      this.worker.postMessage(`setoption name Skill Level value ${Math.max(0, Math.min(20, skillLevel))}`);
-
-      let buffer = '';
-      let timer;
-      const onMessage = (data) => {
-        buffer += data;
-
-        if (buffer.includes('bestmove')) {
-          clearTimeout(timer);
-          this.worker.removeListener('message', onMessage);
-
-          const match = buffer.match(/bestmove ([a-h][1-8])([a-h][1-8])([qrbn])?/);
-          if (match) {
-            resolve({
-              from: match[1],
-              to: match[2],
-              promotion: match[3] || null
-            });
-          } else {
-            // bestmove (none) or parse failure
-            resolve(null);
-          }
-        }
-      };
-
-      this.worker.on('message', onMessage);
-
-      // Send position and think
-      this.worker.postMessage('ucinewgame');
-      this.worker.postMessage(`position fen ${fen}`);
-      this.worker.postMessage('go movetime 1000');
-
-      // Timeout after 10 seconds
-      timer = setTimeout(() => {
-        this.worker.removeListener('message', onMessage);
-        reject(new Error('Stockfish move timed out'));
-      }, 10000);
-    });
-  }
-
   terminate() {
-    if (this.worker) {
-      this.worker.postMessage('quit');
-      this.worker.terminate();
-      this.worker = null;
-      this.ready = false;
-    }
+    this.closed = true;
+    if (this.cancel) this.cancel();
+    else if (this.worker) void this.worker.terminate();
+    this.worker = null;
+    this.ready = false;
   }
 }
 
-// Try to create a Stockfish player, return null if unavailable
 async function createStockfishPlayer() {
   const player = new StockfishPlayer();
   try {
@@ -121,10 +129,9 @@ async function createStockfishPlayer() {
     console.log('Stockfish engine initialized successfully');
     return player;
   } catch (err) {
+    player.terminate();
     console.warn('Stockfish not available:', err.message);
-    console.warn('Agent vs Engine mode will be disabled');
     return null;
   }
 }
-
 module.exports = { StockfishPlayer, createStockfishPlayer };

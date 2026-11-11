@@ -17,7 +17,9 @@
     "test:landing": "node scripts/test-login-page.mjs",
     "test:dashboard": "node scripts/test-dashboard.mjs",
     "test:clocks": "npm --prefix server run test:clocks",
-    "test:clocks-ui": "node scripts/test-clocks-ui.mjs"
+    "test:clocks-ui": "node scripts/test-clocks-ui.mjs",
+    "test:reliability": "node --test scripts/test-game-state.mjs server/chess/stockfishPlayer.test.js server/events.test.js",
+    "test:reliability-ui": "node scripts/test-game-reliability.mjs"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.0",

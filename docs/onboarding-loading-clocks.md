@@ -10,7 +10,7 @@ The onboarding keeps its artwork, layout and copy, with the approved black canva
 - The first side to reach zero loses on time, as requested. A 250 ms server sweep awards the result without requiring a connected browser or another move. Every read/move/end-game action also settles an expired deadline before proceeding.
 - Draw acceptance, resignation, illegal-move forfeits and checkmate freeze both clocks. Late moves or engine replies cannot replace a timeout or an already-finished result.
 - SQLite persists both budgets, the active colour and the start timestamp. Closing a tab, leaving the board, disconnecting or restarting the server does not pause the game. A restarted server settles due games before serving requests.
-- The browser interpolates a server snapshot for display. It never writes remaining time or decides the winner. WebSocket messages, reconnect/visibility refresh and a deadline GET keep it in sync.
+- The browser interpolates a server snapshot for display. It never writes remaining time or decides the winner. Authenticated server-sent events, reconnect/visibility refresh and a single deadline GET keep it in sync. See `game-reliability.md` for the deployment transport repair.
 - Existing rooms and browser-saved games without a clock record stay untimed; adding a fresh 10 minutes to a game already in progress would reset its rules.
 
 New Computer matches use the existing server Stockfish service so they have the same authoritative clocks. Legacy browser-saved matches can still be resumed. Searches on the shared Stockfish worker are queued to avoid mixing responses between games. Engine queues and thinking time count against that engine's clock.

@@ -22,6 +22,7 @@ import { saveGame, loadGame, setCurrentUser } from './utils/gameManager';
 import { useLogin } from './login/context';
 import AccountPanel from './login/AccountPanel';
 import { GAME_SERVER_URL } from './config';
+import { requestJSON } from './api';
 
 function App() {
   const location = useLocation();
@@ -74,21 +75,25 @@ function App() {
   const startMatch = async (color, opponent) => {
     setNotice(null);
     try {
-      const response = await fetch(`${GAME_SERVER_URL}/api/rooms`, {
+      const health = await requestJSON(`${GAME_SERVER_URL}/api/health`);
+      if (health.gameProtocol !== 2 || health.timeControl !== '10+0') {
+        setNotice(
+          'Timed games are temporarily unavailable while the game service updates. Please try again shortly.'
+        );
+        return;
+      }
+      const data = await requestJSON(`${GAME_SERVER_URL}/api/rooms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ color, opponent }),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        setNotice(
-          data.error || 'Could not create your game. Please try again.'
-        );
-        return;
-      }
       navigate(`/game/${data.roomId}`);
-    } catch {
-      setNotice('Could not reach the game server. Please try again.');
+    } catch (err) {
+      setNotice(
+        err.name === 'AbortError'
+          ? 'Starting the game timed out. Please try again.'
+          : err.message
+      );
     }
   };
   const handleStartLocal = (color) => startMatch(color, 'stockfish');

@@ -74,6 +74,7 @@ try {
         profile = { ...profile, username: data.username };
         return route.fulfill({ json: { ok: true } });
       }
+      if (path === '/api/health') return route.fulfill({json:{status:'ok',gameProtocol:2,timeControl:'10+0'}});
       if (path === '/api/rooms' && request.method() === 'GET')
         return failedList
           ? route.fulfill({
