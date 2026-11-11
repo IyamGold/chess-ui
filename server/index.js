@@ -11,6 +11,7 @@ const { createMcpAuthRouter } = require('./routes/mcp-auth');
 const { requireServiceAuth } = require('./middleware/service-auth');
 const { createRoomsRouter } = require('./routes/rooms');
 const { createReaper } = require('./reaper');
+const { createClocks } = require('./chess/clocks');
 const { setupWebSocket } = require('./ws');
 const { createStockfishPlayer } = require('./chess/stockfishPlayer');
 
@@ -125,8 +126,13 @@ async function main() {
   // Mounted at /api/internal to bypass the public /api/auth signup rate limit.
   if (!login) app.use('/api/internal', requireServiceAuth, createMcpAuthRouter(db));
 
+  const clocks = createClocks(db, { broadcast });
+  clocks.sweep();
+  const clockTicker = setInterval(() => clocks.sweep(), 250);
+  clockTicker.unref();
   const roomsRouter = createRoomsRouter(db, {
     broadcast,
+    clocks,
     getStockfishPlayer: () => stockfishPlayer,
   });
   app.use('/api/rooms/:id/move', auth, moveLimiter);
@@ -170,6 +176,7 @@ async function main() {
   process.on('SIGINT', () => {
     console.log('\nShutting down...');
     if (stockfishPlayer) stockfishPlayer.terminate();
+    clearInterval(clockTicker);
     db.close();
     server.close();
     process.exit(0);

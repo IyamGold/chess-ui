@@ -51,6 +51,16 @@ function createDb() {
       room_id INTEGER PRIMARY KEY REFERENCES rooms(id) ON DELETE CASCADE,
       user_id INTEGER NOT NULL REFERENCES users(id)
     );
+    CREATE TABLE IF NOT EXISTS room_clocks (
+      room_id INTEGER PRIMARY KEY REFERENCES rooms(id) ON DELETE CASCADE,
+      white_ms INTEGER NOT NULL CHECK(white_ms >= 0),
+      black_ms INTEGER NOT NULL CHECK(black_ms >= 0),
+      active_color TEXT CHECK(active_color IN ('white','black')),
+      started_at INTEGER,
+      timeout_color TEXT CHECK(timeout_color IN ('white','black')),
+      CHECK((active_color IS NULL) = (started_at IS NULL))
+    );
+    CREATE INDEX IF NOT EXISTS idx_clock_deadlines ON room_clocks(started_at) WHERE active_color IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_rooms_invite_code ON rooms(invite_code);
     CREATE INDEX IF NOT EXISTS idx_users_token_hash ON users(token_hash);
   `);

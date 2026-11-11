@@ -1,8 +1,10 @@
 import ChessIcon from './ChessIcon';
+import GameClock from './GameClock';
 
-// The API has no time controls. Keep this honest instead of displaying a fake countdown.
+// Legacy saved games have no clock; new matches use the server snapshot.
 export default function MatchPlayer({
   name,
+  clock,
   color,
   isYou = false,
   active = false,
@@ -42,13 +44,12 @@ export default function MatchPlayer({
             : ''}
         </small>
       </div>
-      <span
-        className={`match-clock ${active && !finished ? 'active' : ''}`}
-        aria-label={`${color}: untimed game`}
-      >
-        <ChessIcon name="clock" size={16} />
-        Untimed
-      </span>
+      <GameClock
+        clock={clock}
+        color={color}
+        active={active}
+        finished={finished}
+      />
     </div>
   );
 }

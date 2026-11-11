@@ -5,7 +5,12 @@ import './LoginPage.css';
 
 function Fingerprint() {
   return (
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true" className="welcome-fingerprint">
+    <svg
+      viewBox="0 0 32 32"
+      fill="none"
+      aria-hidden="true"
+      className="welcome-fingerprint"
+    >
       <g stroke="currentColor" strokeWidth="1.65" strokeLinecap="round">
         <path d="M5.5 12.5a11 11 0 0 1 21 0M3.8 18v-1.8M28.2 16.2V18" />
         <path d="M8.2 15.7a7.8 7.8 0 0 1 15.6 0c0 5.4 1.1 8.6 2.4 11M5.4 23.8c1.5-2.2 2.8-4.7 2.8-8.1" />
@@ -19,7 +24,12 @@ function Fingerprint() {
 
 function Arrow() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="welcome-arrow">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="welcome-arrow"
+    >
       <path
         d="M4 12h15m-6-6 6 6-6 6"
         stroke="currentColor"
@@ -40,7 +50,9 @@ export default function LoginPage() {
   const cancelled = new URLSearchParams(location.search).has('error');
   const message =
     login.serviceError ||
-    (cancelled ? 'Sign-in didn’t finish. Give it another go when you’re ready.' : '');
+    (cancelled
+      ? 'Sign-in didn’t finish. Give it another go when you’re ready.'
+      : '');
   const retry = async () => {
     setRetrying(true);
     try {
@@ -67,7 +79,10 @@ export default function LoginPage() {
 
       <section className="welcome-hero" aria-labelledby="welcome-title">
         <picture className="welcome-art" aria-hidden="true">
-          <source media="(max-width: 760px)" srcSet="/login-art/chess-garden-mobile.webp" />
+          <source
+            media="(max-width: 760px)"
+            srcSet="/login-art/chess-garden-mobile.webp"
+          />
           <img
             src="/login-art/chess-garden-desktop.webp"
             alt=""
@@ -89,7 +104,11 @@ export default function LoginPage() {
               </p>
             )}
             {busy ? (
-              <button className="welcome-primary" disabled aria-label="Checking session…">
+              <button
+                className="welcome-primary"
+                disabled
+                aria-label="Checking session…"
+              >
                 <span className="welcome-spinner" aria-hidden="true" />
                 <span role="status">Checking session…</span>
               </button>
@@ -108,7 +127,14 @@ export default function LoginPage() {
             )}
             <p className="welcome-reassurance">
               <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <rect x="3.5" y="7" width="9" height="7" rx="2" stroke="currentColor" />
+                <rect
+                  x="3.5"
+                  y="7"
+                  width="9"
+                  height="7"
+                  rx="2"
+                  stroke="currentColor"
+                />
                 <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" />
               </svg>
               Your passkey. Your move.
@@ -119,8 +145,7 @@ export default function LoginPage() {
 
       <footer className="welcome-footer">
         <p>
-          Hackathon demo <span aria-hidden="true">·</span> Testnet only{' '}
-          <span aria-hidden="true">·</span> Unaudited
+          Hackathon demo <span aria-hidden="true">·</span> Testnet only
         </p>
         <p>KYC is optional. Sandbox verification only. No real funds.</p>
       </footer>

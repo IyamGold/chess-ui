@@ -12,27 +12,35 @@ export function useOnlineGame({ sessionReady, roomId, onRoomGone }) {
   const [status, setStatus] = useState('loading'); // loading | waiting | playing | finished | error
   const [room, setRoom] = useState(null);
   const [error, setError] = useState(null);
+  const [clock, setClock] = useState(null);
+  const receiveClock = useCallback(
+    (value) =>
+      setClock(value ? { ...value, receivedAt: performance.now() } : null),
+    []
+  );
 
   const wsRef = useRef(null);
 
   // Keep the latest onRoomGone in a ref so fetchRoom's identity (and the
   // WebSocket effect that depends on it) stays stable across renders.
   const onRoomGoneRef = useRef(onRoomGone);
-  useEffect(() => { onRoomGoneRef.current = onRoomGone; }, [onRoomGone]);
+  useEffect(() => {
+    onRoomGoneRef.current = onRoomGone;
+  }, [onRoomGone]);
 
-  const headers = useCallback(() => ({
-    'Content-Type': 'application/json',
-
-  }), [sessionReady]);
+  const headers = useCallback(
+    () => ({
+      'Content-Type': 'application/json',
+    }),
+    []
+  );
 
   // Fetch room state from server
   const fetchRoom = useCallback(async () => {
     if (!sessionReady || !roomId) return;
 
     try {
-      const resp = await fetch(`${GAME_SERVER_URL}/api/rooms/${roomId}`, {
-
-      });
+      const resp = await fetch(`${GAME_SERVER_URL}/api/rooms/${roomId}`, {});
 
       if (!resp.ok) {
         // 404 = the room/game no longer exists (abandoned, reaped, or never
@@ -56,6 +64,7 @@ export function useOnlineGame({ sessionReady, roomId, onRoomGone }) {
       setLegalMoves(data.legalMoves || []);
       setMoveHistory(data.moveHistory || []);
       setRoom(data);
+      receiveClock(data.clock);
 
       if (data.result) {
         setGameResult(data.result);
@@ -70,7 +79,7 @@ export function useOnlineGame({ sessionReady, roomId, onRoomGone }) {
       setError('Network error');
       setStatus('error');
     }
-  }, [sessionReady, roomId]);
+  }, [sessionReady, roomId, receiveClock]);
 
   // Initial fetch
   useEffect(() => {
@@ -103,15 +112,20 @@ export function useOnlineGame({ sessionReady, roomId, onRoomGone }) {
           break;
 
         case 'move': {
+          if ('clock' in msg.data) receiveClock(msg.data.clock);
           if (msg.data.move) {
             const uci = msg.data.move;
             const cols = 'abcdefgh';
             const toCol = cols.indexOf(uci[2]);
             const toRow = 8 - parseInt(uci[3]);
             const toIndex = toRow * 8 + toCol;
-            setBoard(prev => {
+            setBoard((prev) => {
               const wasCapture = prev && prev[toIndex] !== 0;
-              if (wasCapture) { playCaptureSound(); } else { playMoveSound(); }
+              if (wasCapture) {
+                playCaptureSound();
+              } else {
+                playMoveSound();
+              }
               return msg.data.board || prev;
             });
           } else if (msg.data.board) {
@@ -124,6 +138,7 @@ export function useOnlineGame({ sessionReady, roomId, onRoomGone }) {
         }
 
         case 'gameOver':
+          if ('clock' in msg.data) receiveClock(msg.data.clock);
           setGameResult(msg.data.result);
           setStatus('finished');
           fetchRoom();
@@ -167,7 +182,12 @@ export function useOnlineGame({ sessionReady, roomId, onRoomGone }) {
     function forceReconnect() {
       if (unmounted) return;
       const ws = wsRef.current;
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+      if (
+        ws &&
+        (ws.readyState === WebSocket.OPEN ||
+          ws.readyState === WebSocket.CONNECTING)
+      )
+        return;
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
@@ -177,7 +197,10 @@ export function useOnlineGame({ sessionReady, roomId, onRoomGone }) {
     }
 
     function handleVisibility() {
-      if (document.visibilityState === 'visible') forceReconnect();
+      if (document.visibilityState === 'visible') {
+        forceReconnect();
+        fetchRoom();
+      }
     }
 
     document.addEventListener('visibilitychange', handleVisibility);
@@ -195,83 +218,105 @@ export function useOnlineGame({ sessionReady, roomId, onRoomGone }) {
         wsRef.current = null;
       }
     };
-  }, [sessionReady, roomId, fetchRoom]);
+  }, [sessionReady, roomId, fetchRoom, receiveClock]);
 
   // Submit a move via REST
-  const submitMove = useCallback(async (uciStr) => {
-    if (!sessionReady || !roomId) return { ok: false };
+  const submitMove = useCallback(
+    async (uciStr) => {
+      if (!sessionReady || !roomId) return { ok: false };
 
-    try {
-      const resp = await fetch(`${GAME_SERVER_URL}/api/rooms/${roomId}/move`, {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify({ move: uciStr }),
-      });
+      try {
+        const resp = await fetch(
+          `${GAME_SERVER_URL}/api/rooms/${roomId}/move`,
+          {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify({ move: uciStr }),
+          }
+        );
 
-      const data = await resp.json();
+        const data = await resp.json();
 
-      if (!resp.ok) {
-        console.error('Move rejected:', data.error);
-        await fetchRoom(); // Roll back the optimistic board after a rejected move.
-        return { ok: false, error: data.error };
+        if (!resp.ok) {
+          console.error('Move rejected:', data.error);
+          await fetchRoom(); // Roll back the optimistic board after a rejected move.
+          return { ok: false, error: data.error };
+        }
+
+        // Use response data directly instead of re-fetching
+        if ('clock' in data) receiveClock(data.clock);
+        if (data.board) setBoard(data.board);
+        if (data.currentTurn) setCurrentTurn(data.currentTurn);
+        if (data.legalMoves) setLegalMoves(data.legalMoves);
+        if (data.moveHistory) setMoveHistory(data.moveHistory);
+
+        if (data.gameOver) {
+          setGameResult(data.result);
+          setStatus('finished');
+        }
+
+        return { ok: true, data };
+      } catch (err) {
+        console.error('Submit move error:', err);
+        await fetchRoom();
+        return { ok: false, error: 'Network error' };
       }
-
-      // Use response data directly instead of re-fetching
-      if (data.board) setBoard(data.board);
-      if (data.currentTurn) setCurrentTurn(data.currentTurn);
-      if (data.legalMoves) setLegalMoves(data.legalMoves);
-      if (data.moveHistory) setMoveHistory(data.moveHistory);
-
-      if (data.gameOver) {
-        setGameResult(data.result);
-        setStatus('finished');
-      }
-
-      return { ok: true, data };
-    } catch (err) {
-      console.error('Submit move error:', err);
-      await fetchRoom();
-      return { ok: false, error: 'Network error' };
-    }
-  }, [sessionReady, roomId, headers, fetchRoom]);
+    },
+    [sessionReady, roomId, headers, fetchRoom, receiveClock]
+  );
 
   // Apply move optimistically on the client before server responds
   const applyOptimisticMove = useCallback((fromIndex, toIndex) => {
-    setBoard(prev => {
+    setBoard((prev) => {
       if (!prev) return prev;
       const newBoard = [...prev];
       newBoard[toIndex] = newBoard[fromIndex];
       newBoard[fromIndex] = 0;
       return newBoard;
     });
-    setCurrentTurn(prev => prev === 'white' ? 'black' : 'white');
+    setCurrentTurn((prev) => (prev === 'white' ? 'black' : 'white'));
     setLegalMoves([]); // Clear until server responds
   }, []);
 
   // Get valid target squares for a source square from server legal moves
-  const getValidMovesForSquare = useCallback((sourceIndex) => {
-    const cols = 'abcdefgh';
-    const sourceFile = cols[sourceIndex % 8];
-    const sourceRank = 8 - Math.floor(sourceIndex / 8);
-    const sourceStr = sourceFile + sourceRank;
+  const getValidMovesForSquare = useCallback(
+    (sourceIndex) => {
+      const cols = 'abcdefgh';
+      const sourceFile = cols[sourceIndex % 8];
+      const sourceRank = 8 - Math.floor(sourceIndex / 8);
+      const sourceStr = sourceFile + sourceRank;
 
-    const targets = [];
-    for (const uci of legalMoves) {
-      if (uci.startsWith(sourceStr)) {
-        const targetFile = uci[2];
-        const targetRank = parseInt(uci[3]);
-        const targetCol = cols.indexOf(targetFile);
-        const targetRow = 8 - targetRank;
-        const targetIndex = targetRow * 8 + targetCol;
-        targets.push(targetIndex);
+      const targets = [];
+      for (const uci of legalMoves) {
+        if (uci.startsWith(sourceStr)) {
+          const targetFile = uci[2];
+          const targetRank = parseInt(uci[3]);
+          const targetCol = cols.indexOf(targetFile);
+          const targetRow = 8 - targetRank;
+          const targetIndex = targetRow * 8 + targetCol;
+          targets.push(targetIndex);
+        }
       }
-    }
 
-    // Deduplicate (promotions create multiple moves for same target)
-    return [...new Set(targets)];
-  }, [legalMoves]);
+      // Deduplicate (promotions create multiple moves for same target)
+      return [...new Set(targets)];
+    },
+    [legalMoves]
+  );
 
+  // Expiry needs no client move. The server ticker broadcasts it; this GET is a
+  // reconnect/fallback path and never awards a result on the browser's authority.
+  useEffect(() => {
+    if (!clock?.running || status !== 'playing') return;
+    const budget = clock.running === 'white' ? clock.whiteMs : clock.blackMs;
+    const timer = setTimeout(
+      fetchRoom,
+      Math.max(100, budget - (performance.now() - clock.receivedAt) + 100)
+    );
+    return () => clearTimeout(timer);
+  }, [clock, status, fetchRoom]);
   return {
+    clock,
     board,
     currentTurn,
     myColor,
