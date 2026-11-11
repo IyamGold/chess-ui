@@ -3,6 +3,7 @@ import { listGames, deleteGame, clearAllGames, loadGame } from '../utils/gameMan
 import { GAME_SERVER_URL } from '../config';
 import './GameList.css';
 import ChessIcon from './ChessIcon';
+import { requestJSON } from '../api';
 
 function GameList({ onNewGame, onJoinGame, onResumeGame, onResumeOnline, sessionReady }) {
   const [games, setGames] = useState(listGames);
@@ -15,11 +16,10 @@ function GameList({ onNewGame, onJoinGame, onResumeGame, onResumeOnline, session
   useEffect(() => {
     if (!sessionReady) return;
     let active = true;
+    const controller = new AbortController();
     async function fetchOnlineGames() {
       try {
-        const response = await fetch(`${GAME_SERVER_URL}/api/rooms`);
-        if (!response.ok) throw new Error('Could not load games');
-        const data = await response.json();
+        const data = await requestJSON(`${GAME_SERVER_URL}/api/rooms`, { signal: controller.signal });
         if (active) {
           setOnlineGames(data.rooms || []);
           setOnlineError('');
@@ -33,6 +33,7 @@ function GameList({ onNewGame, onJoinGame, onResumeGame, onResumeOnline, session
     void fetchOnlineGames();
     return () => {
       active = false;
+      controller.abort();
     };
   }, [sessionReady, retry]);
 

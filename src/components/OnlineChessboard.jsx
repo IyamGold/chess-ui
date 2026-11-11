@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import '../Chessboard.css';
 import { PIECE_TYPES } from '../constants';
 import Piece from '../Piece';
@@ -8,17 +8,14 @@ import { useOnlineGame } from '../hooks/useOnlineGame';
 import MatchPlayer from './MatchPlayer';
 import LoadingScreen from './LoadingScreen';
 import BoardCoordinates from './BoardCoordinates';
+import { requestJSON } from '../api';
 
 async function gameAction(roomId, path, body = {}) {
-  const response = await fetch(`/api/rooms/${roomId}/${path}`, {
+  await requestJSON(`/api/rooms/${roomId}/${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!response.ok)
-    throw new Error(
-      (await response.json()).error || 'Could not complete action'
-    );
 }
 
 function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
@@ -29,7 +26,12 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
   const [copied, setCopied] = useState(false);
 
   const isMyTurn = game.myColor === game.currentTurn;
-  const canInteract = game.status === 'playing' && isMyTurn && !promotionData;
+  const canInteract =
+    game.status === 'playing' &&
+    isMyTurn &&
+    !promotionData &&
+    !game.pending &&
+    !game.error;
   // A server update invalidates a selection made on the previous board.
   const selectedFrom =
     canInteract && selection?.board === game.board ? selection.from : null;
@@ -61,7 +63,6 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
     if (game.board[squareIndex] !== 0) playCaptureSound();
     else playMoveSound();
 
-    game.applyOptimisticMove(selectedFrom, squareIndex);
     setSelection(null);
     void game.submitMove(fromStr + toStr);
   };
@@ -101,9 +102,6 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
 
       playCaptureSound();
 
-      // Apply promotion optimistically
-      game.applyOptimisticMove(from, to);
-
       setPromotionData(null);
 
       game.submitMove(uci);
@@ -129,6 +127,22 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
     setTimeout(() => setCopied(false), 2000);
   }, [inviteCode]);
 
+  useEffect(() => {
+    if (game.gameResult) playNotifySound();
+  }, [game.gameResult]);
+
+  if (game.status === 'error')
+    return (
+      <div className="online-error" role="alert">
+        <p>{game.error}</p>
+        <button className="back-button" onClick={game.fetchRoom}>
+          Retry
+        </button>
+        <button className="back-button" onClick={onBackToList}>
+          Back to Games
+        </button>
+      </div>
+    );
   // Loading state
   if (game.status === 'loading' || !game.board) {
     return <LoadingScreen />;
@@ -163,18 +177,6 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
     );
   }
 
-  // Error state
-  if (game.status === 'error') {
-    return (
-      <div className="online-error">
-        <p>Error: {game.error}</p>
-        <button className="back-button" onClick={onBackToList}>
-          Back to Games
-        </button>
-      </div>
-    );
-  }
-
   // Build game status message
   let gameStatus = '';
   let statusColor = '#9a563e';
@@ -183,7 +185,6 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
   const blackInCheck = game.board ? isKingInCheck(game.board, false) : false;
 
   if (game.gameResult) {
-    playNotifySound();
     if (game.gameResult === '1-0') {
       gameStatus = game.clock?.timeoutColor
         ? 'White wins on time!'
@@ -215,6 +216,12 @@ function OnlineChessboard({ sessionReady, roomId, onBackToList, onRoomGone }) {
 
   return (
     <>
+      {(game.error || !game.connected) && (
+        <div className="connection-status" role="status">
+          {game.error || 'Reconnecting live updates…'}
+          {game.error && <button onClick={game.fetchRoom}>Retry</button>}
+        </div>
+      )}
       {gameStatus && (
         <div
           className={`game-status${
