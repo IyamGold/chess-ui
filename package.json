@@ -22,7 +22,8 @@
     "test:reliability-ui": "node scripts/test-game-reliability.mjs",
     "test:verification": "node --test server/login/index.test.js scripts/test-verification-state.mjs",
     "test:verification-ui": "node scripts/test-verification-ui.mjs",
-    "test:verification:integration": "node --experimental-strip-types scripts/test-verification-integration.mjs"
+    "test:verification:integration": "node --experimental-strip-types scripts/test-verification-integration.mjs",
+    "test:passkey-handoff": "node scripts/test-passkey-handoff.mjs"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.0",

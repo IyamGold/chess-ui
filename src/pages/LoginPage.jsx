@@ -119,7 +119,7 @@ export default function LoginPage() {
                 <Arrow />
               </button>
             ) : (
-              <a className="welcome-primary" href="/api/login/start">
+              <a className="welcome-primary" href="/api/login/start?fresh=1">
                 <Fingerprint />
                 <span>Continue with Login</span>
                 <Arrow />
