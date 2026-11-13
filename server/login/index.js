@@ -55,6 +55,10 @@ async function createLogin(db, options) {
   CREATE TABLE IF NOT EXISTS login_sessions (
     id_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), expires_at INTEGER NOT NULL
   );`);
+  // A pre-existing verification flag never implies a disclosed level.
+  if (!db.prepare('PRAGMA table_info(login_accounts)').all().some(column => column.name === 'kyc_level')) {
+    db.exec('ALTER TABLE login_accounts ADD COLUMN kyc_level TEXT');
+  }
   const pending = new Map();
   const router = express.Router();
   const session = (request) => {
@@ -63,7 +67,7 @@ async function createLogin(db, options) {
     return (
       db
         .prepare(
-          `SELECT users.id, users.username, accounts.verified_human, accounts.sandbox
+          `SELECT users.id, users.username, accounts.verified_human, accounts.sandbox, accounts.kyc_level
       FROM login_sessions sessions JOIN users ON users.id=sessions.user_id
       JOIN login_accounts accounts ON accounts.user_id=users.id
       WHERE sessions.id_hash=? AND sessions.expires_at>?`,
@@ -102,7 +106,7 @@ async function createLogin(db, options) {
       });
       const url = client.buildAuthorizationUrl(config, {
         redirect_uri: redirect,
-        scope: 'openid',
+        scope: 'openid kyc_level',
         state,
         nonce,
         code_challenge: await client.calculatePKCECodeChallenge(verifier),
@@ -155,10 +159,12 @@ async function createLogin(db, options) {
         account = create();
       }
       db.prepare(
-        'UPDATE login_accounts SET verified_human=?,sandbox=? WHERE issuer=? AND subject=?',
+        'UPDATE login_accounts SET verified_human=?,sandbox=?,kyc_level=? WHERE issuer=? AND subject=?',
       ).run(
         info.verified_human === true ? 1 : 0,
-        info.verification_sandbox === true ? 1 : 0,
+        info.verified_human === true && info.verification_sandbox === true ? 1 : 0,
+        info.verified_human === true && tokens.scope?.split(' ').includes('kyc_level') &&
+          ['L1', 'L2', 'L3'].includes(info.kyc_level) ? info.kyc_level : null,
         issuerUrl.href,
         claims.sub,
       );
@@ -191,7 +197,8 @@ async function createLogin(db, options) {
       id: user.id,
       username: user.username,
       ...(user.verified_human
-        ? { verified_human: true, verification_sandbox: !!user.sandbox }
+        ? { verified_human: true, verification_sandbox: !!user.sandbox,
+            ...(['L1', 'L2', 'L3'].includes(user.kyc_level) ? { kyc_level: user.kyc_level } : {}) }
         : {}),
     });
   });

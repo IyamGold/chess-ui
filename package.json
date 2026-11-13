@@ -19,7 +19,10 @@
     "test:clocks": "npm --prefix server run test:clocks",
     "test:clocks-ui": "node scripts/test-clocks-ui.mjs",
     "test:reliability": "node --test scripts/test-game-state.mjs server/chess/stockfishPlayer.test.js server/events.test.js",
-    "test:reliability-ui": "node scripts/test-game-reliability.mjs"
+    "test:reliability-ui": "node scripts/test-game-reliability.mjs",
+    "test:verification": "node --test server/login/index.test.js scripts/test-verification-state.mjs",
+    "test:verification-ui": "node scripts/test-verification-ui.mjs",
+    "test:verification:integration": "node --experimental-strip-types scripts/test-verification-integration.mjs"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.0",

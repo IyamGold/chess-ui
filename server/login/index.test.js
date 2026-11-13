@@ -140,3 +140,71 @@ test('onchainchess.app uses hosted Secure cookies and still rejects lookalike or
     db.close();
   }
 });
+
+test('verification levels are displayed only alongside verified humanity; old accounts migrate without inventing a level', async () => {
+  const db = database();
+  db.exec(`CREATE TABLE login_accounts (
+    issuer TEXT NOT NULL, subject TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id),
+    verified_human INTEGER NOT NULL DEFAULT 0, sandbox INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(issuer,subject));`);
+  db.prepare('INSERT INTO users VALUES (?,?)').run(1, 'synthetic-player');
+  db.prepare('INSERT INTO login_accounts VALUES (?,?,?,?,?)').run(
+    'http://localhost:5180/oidc',
+    'synthetic-subject',
+    1,
+    1,
+    1
+  );
+  const login = await createLogin(db, {
+    issuer: 'http://localhost:5180/oidc',
+    origin: 'http://localhost:5190',
+  });
+  // Repeated setup must be safe and preserve the existing account.
+  await createLogin(db, {
+    issuer: 'http://localhost:5180/oidc',
+    origin: 'http://localhost:5190',
+  });
+  const hash = createHash('sha256')
+    .update('synthetic-level-session')
+    .digest('hex');
+  db.prepare('INSERT INTO login_sessions VALUES (?,?,?)').run(
+    hash,
+    1,
+    Date.now() + 60000
+  );
+  const app = express();
+  app.use('/api/login', login.router);
+  const server = await new Promise((resolve) => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
+  });
+  try {
+    const get = async () =>
+      (
+        await fetch(
+          `http://127.0.0.1:${server.address().port}/api/login/session`,
+          { headers: { cookie: 'chess_session=synthetic-level-session' } }
+        )
+      ).json();
+    let profile = await get();
+    assert.equal(profile.verified_human, true);
+    assert.equal(profile.kyc_level, undefined);
+    for (const level of ['L1', 'L2']) {
+      db.prepare('UPDATE login_accounts SET kyc_level=?').run(level);
+      profile = await get();
+      assert.equal(profile.kyc_level, level);
+      assert.equal(profile.verification_sandbox, true);
+    }
+    db.prepare('UPDATE login_accounts SET kyc_level=?').run('invented');
+    assert.equal((await get()).kyc_level, undefined);
+    db.prepare(
+      "UPDATE login_accounts SET verified_human=0,kyc_level='L2'"
+    ).run();
+    profile = await get();
+    assert.equal(profile.verified_human, undefined);
+    assert.equal(profile.kyc_level, undefined);
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+    db.close();
+  }
+});
