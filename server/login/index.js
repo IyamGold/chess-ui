@@ -111,7 +111,8 @@ async function createLogin(db, options) {
         nonce,
         code_challenge: await client.calculatePKCECodeChallenge(verifier),
         code_challenge_method: 'S256',
-        ...(req.query.fresh === '1' ? { prompt: 'login' } : {}),
+        // Entering Chess explicitly requires a new Login passkey check.
+        prompt: 'login',
       });
       res.redirect(303, url.href);
     } catch {

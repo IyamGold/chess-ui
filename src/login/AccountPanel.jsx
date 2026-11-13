@@ -50,7 +50,7 @@ export default function AccountPanel() {
         <span className="profile-avatar">{initials}</span>
         <div>
           <strong>{profile.username}</strong>
-          <span>Ready for your next move</span>
+          <span>Chess player name · Signed in with Login</span>
         </div>
       </div>
       <div

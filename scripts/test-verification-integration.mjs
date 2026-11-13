@@ -44,6 +44,7 @@ const listen = (server) =>
 const issuer = (await listen(identityServer)) + '/oidc',
   chessOrigin = await listen(chessServer);
 try {
+  let authenticatedAtMs = Date.now();
   oidc = createOidc({
     issuer,
     db: loginDb,
@@ -57,7 +58,8 @@ try {
     ],
     getSignedInUser: async () => ({
       userId: 'synthetic-user',
-      authenticatedAt: Math.floor(Date.now() / 1000),
+      authenticatedAt: Math.floor(authenticatedAtMs / 1000),
+      authenticatedAtMs,
       method: 'passkey',
       userVerified: true,
     }),
@@ -96,7 +98,20 @@ try {
         return session.json();
       }
       if (location) {
-        url = new URL(location, url).href;
+        const target = new URL(location, url);
+        if (url === chessOrigin + '/api/login/start')
+          assert.equal(target.searchParams.get('prompt'), 'login');
+        if (target.pathname === '/signin') {
+          // This protocol test injects authentication through its existing test
+          // adapter. The browser test separately performs the real passkey check.
+          authenticatedAtMs = Math.max(Date.now(), authenticatedAtMs + 1);
+          url = new URL(
+            `/oidc/interaction/${target.searchParams.get(
+              'interaction'
+            )}/complete`,
+            issuer
+          ).href;
+        } else url = target.href;
         continue;
       }
       const html = await response.text();

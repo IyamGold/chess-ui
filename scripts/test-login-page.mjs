@@ -30,7 +30,7 @@ try {
     const page = await context.newPage();
     await page.goto(base + '/login');
     const link = page.getByRole('link', { name: 'Continue with Login', exact: true });
-    await expect(link).toHaveAttribute('href', '/api/login/start');
+    await expect(link).toHaveAttribute('href', '/api/login/start?fresh=1');
     await page.locator('.welcome-art img').evaluate((image) => image.decode());
     assert.ok(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
