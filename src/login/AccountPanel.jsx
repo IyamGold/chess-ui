@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useLogin } from './context';
 import ChessIcon from '../components/ChessIcon';
+import { verificationStatus } from './verification';
 
 export default function AccountPanel() {
   const { profile, refresh } = useLogin();
+  const verification = verificationStatus(profile);
   const [name, setName] = useState(profile?.username ?? '');
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -51,9 +53,16 @@ export default function AccountPanel() {
           <span>Ready for your next move</span>
         </div>
       </div>
-      <div className={`verification-label ${profile.verified_human ? 'verified' : ''}`}>
-        <ChessIcon name={profile.verified_human ? 'verified' : 'user'} size={16} />
-        <span>{profile.verified_human ? 'Verified human' : 'Verification optional'}</span>
+      <div
+        className={`verification-label ${
+          verification.verified ? 'verified' : ''
+        }`}
+      >
+        <ChessIcon
+          name={verification.verified ? 'verified' : 'user'}
+          size={16}
+        />
+        <span>{verification.label}</span>
       </div>
       {profile.verification_sandbox && (
         <p className="sandbox-result">Sandbox result, not real-world verification.</p>

@@ -23,6 +23,7 @@ import { useLogin } from './login/context';
 import AccountPanel from './login/AccountPanel';
 import { GAME_SERVER_URL } from './config';
 import { requestJSON } from './api';
+import { verificationStatus } from './login/verification';
 
 function App() {
   const location = useLocation();
@@ -280,7 +281,7 @@ function App() {
                 <span className="player-avatar">{initials}</span>
                 <span>
                   {passkey.username}
-                  <small>Signed in with Login</small>
+                  <small>{verificationStatus(passkey.profile).label}</small>
                 </span>
               </button>
               <button

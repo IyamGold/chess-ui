@@ -386,7 +386,7 @@ try {
     };
     await page.reload();
     await expect(
-      page.getByText('Verification optional', { exact: true })
+      page.locator('.player-card .verification-label').filter({hasText:'Not verified'})
     ).toBeVisible();
     await expect(page.getByText('Verified human', { exact: true })).toHaveCount(
       0
@@ -394,7 +394,7 @@ try {
     await page.getByRole('button', { name: 'Log out', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('Could not sign out');
     await expect(
-      page.getByText('Verification optional', { exact: true })
+      page.locator('.player-card .verification-label').filter({hasText:'Not verified'})
     ).toBeVisible();
     logoutFails = false;
     await page.getByRole('button', { name: 'Log out', exact: true }).click();
