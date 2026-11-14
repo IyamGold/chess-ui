@@ -5,8 +5,13 @@ export function verificationStatus(profile) {
   const level = ['L1', 'L2', 'L3'].includes(profile.kyc_level)
     ? profile.kyc_level
     : null;
+  const labels = {
+    L1: 'L1 possibly human',
+    L2: 'L2 verified human',
+    L3: 'L3 verified human',
+  };
   return {
     verified: true,
-    label: level ? `${level} verified` : 'Verified human · Level not shared',
+    label: level ? labels[level] : 'Verified human · Level not shared',
   };
 }

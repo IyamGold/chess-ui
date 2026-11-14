@@ -9,11 +9,11 @@ try {
       [{}, 'Not verified'],
       [
         { verified_human: true, kyc_level: 'L1', verification_sandbox: true },
-        'L1 verified',
+        'L1 possibly human',
       ],
       [
         { verified_human: true, kyc_level: 'L2', verification_sandbox: true },
-        'L2 verified',
+        'L2 verified human',
       ],
       [
         { verified_human: true, verification_sandbox: true },

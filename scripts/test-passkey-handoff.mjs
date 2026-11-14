@@ -194,7 +194,7 @@ try {
       assert.equal(profile.kyc_level, level);
       assert.ok(!('email' in profile));
       await expect(page.locator('.player-card .verification-label')).toHaveText(
-        `${level} verified`
+        level === 'L1' ? 'L1 possibly human' : 'L2 verified human'
       );
       await expect(page.locator('.player-card')).not.toContainText(email);
       if (level === 'L1') await logout();

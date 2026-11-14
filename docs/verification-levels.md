@@ -1,7 +1,7 @@
 # Login verification levels in Chess
 
 The player's account card, account dialog and desktop player summary display
-`L1 verified` or `L2 verified` from Login's authenticated result. Unverified
+`L1 possibly human` or `L2 verified human` from Login's authenticated result. Unverified
 players see `Not verified`. A verified-human session without a disclosed level
 shows `Verified human · Level not shared`; a boolean is never converted into an
 invented level. Sandbox results retain the explicit sandbox notice.
